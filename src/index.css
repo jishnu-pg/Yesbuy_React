@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-manrope: 'Manrope', 'sans-serif';
+  --font-sans: var(--font-manrope);
+}
+
+* {
+  font-family: var(--font-manrope);
+}
+
+body {
+  font-family: var(--font-manrope);
+  background-color: white;
+}
+
+html {
+  background-color: white;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* All bullets */
+.custom-bullet {
+  width: 0.5rem; /* w-2 */
+  height: 0.5rem; /* h-2 */
+  border-radius: 9999px; /* rounded-full */
+  margin: 0 0.25rem; /* mx-1 */
+  border: 3px solid #ef4444; /* Tailwind red-400 */
+  
+  transition: all 0.3s ease;
+}
+
+/* Active bullet */
+.swiper-pagination-bullet-active.custom-bullet {
+  background-color: #ef4444; /* Tailwind red-400 */
+  border: none;
+  width: 8px; /* optional: slightly larger */
+  height: 8px;
+}
+
+/* Dropdown animation */
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-down {
+  animation: fade-in-down 0.2s ease-out;
+}
+
+
+
+
