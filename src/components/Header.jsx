@@ -385,10 +385,20 @@ const Header = () => {
               }, 300); // 300ms delay
             }}
           >
-            <button className="flex flex-col items-center text-gray-700 hover:text-[#ec1b45] px-1 sm:px-2">
-              <GoPerson size={20} />
-              <span className="text-xs mt-1">My Account</span>
-            </button>
+            {(() => {
+              const isProfileActive = location.pathname === '/profile' || 
+                                     location.pathname === '/orders' || 
+                                     location.pathname === '/addresses' ||
+                                     location.pathname.startsWith('/order/');
+              return (
+                <button className={`flex flex-col items-center px-1 sm:px-2 transition-colors ${
+                  isProfileActive ? 'text-[#ec1b45]' : 'text-gray-700 hover:text-[#ec1b45]'
+                }`}>
+                  <GoPerson size={20} />
+                  <span className="text-xs mt-1">My Account</span>
+                </button>
+              );
+            })()}
 
             {/* Dropdown Menu */}
             {showProfileDropdown && (
@@ -485,13 +495,25 @@ const Header = () => {
             className="sm:hidden relative z-[100]"
             ref={mobileDropdownRef}
           >
-            <button
-              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-              className="flex flex-col items-center text-gray-700 hover:text-[#ec1b45] px-1 sm:px-2"
-              aria-label="My Account"
-            >
-              <IconBtn icon={<GoPerson />} label="Profile" />
-            </button>
+            {(() => {
+              const isProfileActive = location.pathname === '/profile' || 
+                                     location.pathname === '/orders' || 
+                                     location.pathname === '/addresses' ||
+                                     location.pathname.startsWith('/order/');
+              return (
+                <button
+                  onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                  className="flex flex-col items-center"
+                  aria-label="My Account"
+                >
+                  <IconBtn 
+                    icon={<GoPerson />} 
+                    label="Profile"
+                    className={isProfileActive ? 'text-[#ec1b45]' : 'text-gray-700 hover:text-[#ec1b45]'}
+                  />
+                </button>
+              );
+            })()}
 
             {/* Dropdown Menu - Mobile */}
             {showProfileDropdown && (
@@ -539,10 +561,15 @@ const Header = () => {
           >
             <button
               onClick={handleNotificationClick}
-              className="flex flex-col items-center text-gray-700 hover:text-[#ec1b45] px-1 sm:px-2 relative"
+              className="flex flex-col items-center relative"
               aria-label="Notifications"
             >
-              <IconBtn icon={<IoMdNotificationsOutline />} label="Notifications" badge={unreadCount > 0 ? unreadCount : null} />
+              <IconBtn 
+                icon={<IoMdNotificationsOutline />} 
+                label="Notifications" 
+                badge={unreadCount > 0 ? unreadCount : null}
+                className={showNotificationDropdown ? 'text-[#ec1b45]' : 'text-gray-700 hover:text-[#ec1b45]'}
+              />
             </button>
 
             {/* Notification Dropdown */}
@@ -602,11 +629,27 @@ const Header = () => {
               </div>
             )}
           </div>
-          <Link to="/favorite">
-            <IconBtn icon={<CiHeart />} label="Favorites" badge={wishlistCount} />
+          <Link 
+            to="/favorite"
+            className="flex flex-col items-center"
+          >
+            <IconBtn 
+              icon={<CiHeart />} 
+              label="Favorites" 
+              badge={wishlistCount}
+              className={location.pathname === '/favorite' ? 'text-[#ec1b45]' : 'text-gray-700 hover:text-[#ec1b45]'}
+            />
           </Link>
-          <Link to={"/cartPage"}>
-            <IconBtn icon={<BsHandbag />} label="Cart" badge={cartCount} />
+          <Link 
+            to="/cartPage"
+            className="flex flex-col items-center"
+          >
+            <IconBtn 
+              icon={<BsHandbag />} 
+              label="Cart" 
+              badge={cartCount}
+              className={location.pathname === '/cartPage' || location.pathname === '/cartpage' ? 'text-[#ec1b45]' : 'text-gray-700 hover:text-[#ec1b45]'}
+            />
           </Link>
         </div>
       </div>
@@ -687,12 +730,12 @@ const Header = () => {
   );
 };
 
-const IconBtn = ({ icon, label, badge }) => {
+const IconBtn = ({ icon, label, badge, className = "" }) => {
   // Format badge number for display (show 99+ if count is greater than 99)
   const displayBadge = badge > 99 ? '99+' : badge;
 
   return (
-    <div className="relative text-md sm:text-[20px] flex flex-col items-center text-gray-700 hover:text-[#ec1b45] px-1 sm:px-2">
+    <div className={`relative text-md sm:text-[20px] flex flex-col items-center px-1 sm:px-2 ${className || 'text-gray-700 hover:text-[#ec1b45]'}`}>
       {icon}
       {label && <span className="text-xs mt-1 hidden sm:block">{label}</span>}
       {badge > 0 && (

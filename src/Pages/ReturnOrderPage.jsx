@@ -128,37 +128,31 @@ const ReturnOrderPage = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-8">
           <button
             onClick={() => navigate(`/order/${orderId}`)}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
           >
             <FaArrowLeft size={16} />
-            <span className="text-sm font-medium">Return Order</span>
+            <span className="text-sm font-medium">Back to Order Details</span>
           </button>
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Order Return</h1>
-            <a href="/help" className="text-sm text-[#ec1b45] hover:underline">
-              Help
-            </a>
-          </div>
         </div>
 
         {/* Order ID */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
+        <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">ORDER ID</p>
-              <p className="text-lg font-semibold text-gray-900">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Order ID</p>
+              <p className="text-xl font-bold text-gray-900">
                 {orderDetail.item_order_id || 'N/A'}
               </p>
             </div>
             {orderDetail.item_order_id && (
               <button
                 onClick={copyOrderId}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium"
+                className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm font-medium text-gray-700"
               >
                 <FaCopy size={14} />
                 <span>Copy</span>
@@ -168,13 +162,13 @@ const ReturnOrderPage = () => {
         </div>
 
         {/* Delivery Status */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
+        <div className="mb-8">
           <div className="flex items-start gap-4">
             <div className="flex-shrink-0">
               <FaCheckCircle size={24} className="text-green-500" />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Order Delivered</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Order Delivered</h3>
               {order.created_date && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <FaCalendarAlt size={14} />
@@ -186,7 +180,8 @@ const ReturnOrderPage = () => {
         </div>
 
         {/* Product Information */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
+        <div className="mb-8">
+          {/* <h2 className="text-lg font-semibold text-gray-900 mb-4">Product Details</h2> */}
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
             {/* Product Image */}
             <div className="flex-shrink-0">
@@ -249,29 +244,39 @@ const ReturnOrderPage = () => {
         </div>
 
         {/* Reason for Return */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Reason for return</h2>
-          <p className="text-sm text-gray-600 mb-6">
-            Please tell us correct reason for return. This information is only to improve our service.
-          </p>
+        <div className="mb-8">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Reason for Return</h2>
+            <p className="text-sm text-gray-600">
+              Please select the reason for your return. This helps us improve our service.
+            </p>
+          </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             {returnReasons.map((reasonItem) => {
               const reasonText = typeof reasonItem === 'string' ? reasonItem : (reasonItem.reason || reasonItem.name || 'Unknown Reason');
+              const isSelected = selectedReason === reasonText;
               return (
                 <label
                   key={reasonText}
-                  className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
+                  className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                    isSelected
+                      ? 'bg-red-50'
+                      : 'hover:bg-gray-50'
+                  }`}
                 >
                   <input
                     type="radio"
                     name="returnReason"
                     value={reasonText}
-                    checked={selectedReason === reasonText}
+                    checked={isSelected}
                     onChange={(e) => setSelectedReason(e.target.value)}
-                    className="mt-1 w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45]"
+                    className="mt-0.5 w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45] focus:ring-2"
+                    style={{ accentColor: '#ec1b45' }}
                   />
-                  <span className="text-sm text-gray-700 flex-1">{reasonText}</span>
+                  <span className={`text-sm flex-1 ${isSelected ? 'text-gray-900 font-medium' : 'text-gray-700'}`}>
+                    {reasonText}
+                  </span>
                 </label>
               );
             })}
@@ -279,27 +284,35 @@ const ReturnOrderPage = () => {
         </div>
 
         {/* Additional Comment */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Additional Comment
+        <div className="mb-8">
+          <label className="block text-sm font-semibold text-gray-900 mb-2">
+            Additional Comment <span className="text-gray-500 font-normal">(Optional)</span>
           </label>
           <textarea
             value={additionalComment}
             onChange={(e) => setAdditionalComment(e.target.value)}
-            placeholder="Add any additional details about your return..."
+            placeholder="Add any additional details about your return request..."
             rows={4}
-            className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none resize-none"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none resize-none text-sm text-gray-700 placeholder-gray-400"
           />
         </div>
 
         {/* Continue Button */}
-        <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 -mx-4 sm:mx-0 sm:rounded-lg sm:border sm:mt-6">
-          <button
-            onClick={handleContinue}
-            className="w-full bg-[#ec1b45] text-white py-3 px-6 rounded-md hover:bg-[#d91b40] transition-colors font-semibold text-base"
-          >
-            Continue
-          </button>
+        <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 -mx-4 sm:mx-0 sm:mt-8">
+          <div className="max-w-4xl mx-auto">
+            <button
+              onClick={handleContinue}
+              disabled={!selectedReason}
+              className="w-full bg-[#ec1b45] text-white py-3.5 px-6 rounded-lg hover:bg-[#d91b40] transition-colors font-semibold text-base disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
+              Continue to Refund Details
+            </button>
+            {!selectedReason && (
+              <p className="text-xs text-gray-500 text-center mt-2">
+                Please select a reason for return
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

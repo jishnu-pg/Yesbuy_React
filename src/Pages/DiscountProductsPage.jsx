@@ -28,12 +28,26 @@ const DiscountProductsPage = () => {
         // Map products to match ProductCard format
         const mappedProducts = response.results.map((product) => ({
           id: product.product_id || product.id,
+          product_id: product.product_id,
+          variant_id: product.variant_id,
           name: product.name,
-          price: product.price,
+          title: product.name,
+          price: product.discount_price?.has_offer 
+            ? product.discount_price.discounted_price 
+            : product.price,
           originalPrice: product.discount_price?.base_price || product.price,
+          discountPercentage: product.discount_price?.percentage || 0,
           discount: product.discount_price?.percentage || 0,
+          discount_text: product.discount_price?.discount_text || null,
           discountText: product.discount_price?.discount_text || null,
           is_bogo: product.discount_price?.is_bogo || false,
+          has_offer: product.discount_price?.has_offer || false,
+          images: [
+            { url: product.main_image },
+            ...(product.additional_images || []).map(img => ({ 
+              url: typeof img === 'string' ? img : img.image || img 
+            }))
+          ],
           main_image: product.main_image,
           additional_images: product.additional_images || [],
           brand: product.brand_name || null,

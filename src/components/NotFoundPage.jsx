@@ -6,7 +6,7 @@ const NotFoundPage = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-white flex items-center justify-center px-4 py-12">
       <div className="max-w-2xl w-full text-center">
         <div className="mb-8">
           <h1 className="text-9xl font-bold text-[#ec1b45] mb-4">404</h1>
