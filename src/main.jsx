@@ -5,6 +5,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { store } from "./app/store";
 import { Provider } from "react-redux";
 import { Toaster } from "react-hot-toast";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 import HomeContent from './Pages/HomeContent'
 import Loader from "./Pages/Loader";
@@ -34,6 +35,8 @@ import ReturnRefundPage from "./Pages/ReturnRefundPage";
 import AddBankAccountPage from "./Pages/AddBankAccountPage";
 import ExchangeOrderPage from "./Pages/ExchangeOrderPage";
 import ExchangeOrderDetailsPage from "./Pages/ExchangeOrderDetailsPage";
+import NotFoundPage from "./components/NotFoundPage";
+import HttpErrorPage from "./components/HttpErrorPage";
 
 const router = createBrowserRouter([
   { path: "/", element: <Loader /> },
@@ -130,37 +133,44 @@ const router = createBrowserRouter([
         element: <PrivacyPolicyPage />,
       },
     ],
+    errorElement: <HttpErrorPage />,
+  },
+  {
+    path: "*",
+    element: <NotFoundPage />,
   },
 ]);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <Provider store={store}>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-          success: {
-            duration: 3000,
-            iconTheme: {
-              primary: '#10b981',
-              secondary: '#fff',
-            },
-          },
-          error: {
+    <ErrorBoundary>
+      <Provider store={store}>
+        <Toaster
+          position="top-right"
+          toastOptions={{
             duration: 4000,
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+            style: {
+              background: '#363636',
+              color: '#fff',
             },
-          },
-        }}
-      />
-      <RouterProvider router={router} />
-    </Provider>
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              duration: 4000,
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
+        <RouterProvider router={router} />
+      </Provider>
+    </ErrorBoundary>
   </React.StrictMode>
 );

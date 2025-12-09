@@ -234,14 +234,24 @@ const ProductListWithFilters = () => {
 
     const selectedItems = selectedFilters[filterType] || [];
     const isOpen = accordionStates[filterType];
+    const selectedCount = selectedItems.length;
 
-  return (
+    return (
       <AccordionPM
-        title={filterLabel}
+        title={
+          <div className="flex items-center gap-2">
+            <span>{filterLabel}</span>
+            {selectedCount > 0 && (
+              <span className="bg-[#ec1b45] text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center">
+                {selectedCount}
+              </span>
+            )}
+          </div>
+        }
         isOpen={isOpen}
         onToggle={() => toggleAccordion(filterType)}
       >
-          <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-2 pl-4">
           {filterItems.map((item) => {
             const itemId = item.id;
             const itemName = item.name || item.label;
@@ -267,7 +277,12 @@ const ProductListWithFilters = () => {
       <aside className="w-64 p-4 bg-white border-r border-gray-300 overflow-y-auto max-h-[calc(100vh-80px)]">
         <div className="flex justify-between items-center mb-4">
           <h2 className="font-bold text-lg">Filters</h2>
-          {selectedFilters.brand.length > 0 && (
+          {(selectedFilters.brand.length > 0 || 
+            selectedFilters.size.length > 0 || 
+            selectedFilters.category.length > 0 || 
+            selectedFilters.color.length > 0 || 
+            selectedFilters.fit.length > 0 || 
+            selectedFilters.material.length > 0) && (
             <button
               onClick={clearFilters}
               className="text-sm text-[#ec1b45] hover:underline"
@@ -275,47 +290,29 @@ const ProductListWithFilters = () => {
               Clear
             </button>
           )}
-          </div>
+        </div>
 
         {isLoadingFilters ? (
           <LoaderSpinner label="Loading filters..." />
         ) : (
           <div>
             {/* Brand Filter */}
-            {filters.brand && filters.brand.length > 0 && (
-              <div>
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  Brand
-                  {selectedFilters.brand.length > 0 && (
-                    <span className="bg-[#ec1b45] text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center">
-                      {selectedFilters.brand.length}
-                    </span>
-                  )}
-                </h3>
-                <div className="flex flex-col gap-2">
-                  {filters.brand.map((item) => {
-                    const itemId = item.id;
-                    const itemName = item.name || item.label;
-                    const isSelected = (selectedFilters.brand || []).includes(itemId);
+            {renderFilterSection("brand", "Brand", filters.brand)}
 
-                    return (
-                      <FilterCheckbox
-                        key={itemId}
-                        label={itemName}
-                        checked={isSelected}
-                        onChange={() => handleFilterChange("brand", itemId)}
-                      />
-                    );
-                  })}
-                </div>
-          </div>
-            )}
-            {/* Other filters are temporarily disabled as per requirement */}
-            {/* {renderFilterSection("size", "Size", filters.size)} */}
+            {/* Size Filter */}
+            {renderFilterSection("size", "Size", filters.size)}
+
+            {/* Category Filter - Commented out */}
             {/* {renderFilterSection("category", "Category", filters.category)} */}
-            {/* {renderFilterSection("color", "Color", filters.color)} */}
-            {/* {renderFilterSection("fit", "Fit", filters.fit)} */}
-            {/* {renderFilterSection("material", "Material", filters.material)} */}
+
+            {/* Color Filter */}
+            {renderFilterSection("color", "Color", filters.color)}
+
+            {/* Fit Filter */}
+            {renderFilterSection("fit", "Fit", filters.fit)}
+
+            {/* Material Filter */}
+            {renderFilterSection("material", "Material", filters.material)}
           </div>
         )}
       </aside>

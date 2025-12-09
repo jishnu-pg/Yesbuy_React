@@ -1,54 +1,15 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { FaTimes, FaChevronRight } from "react-icons/fa";
-import { addToCart as addToCartAPI, getCart } from "../../services/api/cart";
-import { showError, showSuccess } from "../../utils/toast";
+import { useNavigate } from "react-router-dom";
+import { FaChevronRight } from "react-icons/fa";
 
 const BOGOPopup = ({ isOpen, onClose, freeProducts, discountText }) => {
   const navigate = useNavigate();
-  const [addingToCart, setAddingToCart] = useState({});
 
   if (!isOpen || !freeProducts || freeProducts.length === 0) return null;
 
-  const getCartId = async () => {
-    try {
-      const response = await getCart();
-      if (response.status && response.data?.cart_id) {
-        return response.data.cart_id;
-      }
-      return '0'; // Return '0' for new cart
-    } catch (error) {
-      console.error("Failed to fetch cart ID:", error);
-      return '0'; // Return '0' if API fails
-    }
-  };
-
-  const handleAddToCart = async (product) => {
-    try {
-      setAddingToCart(prev => ({ ...prev, [product.id]: true }));
-
-      const cartId = await getCartId();
-      const cartItemData = {
-        product_id: product.id,
-        product_variant_id: product.id, // Using product id as variant id for free products
-        size_type: 'others',
-        quantity: 1,
-      };
-
-      const response = await addToCartAPI(cartId, cartItemData);
-
-      if (response.status) {
-        window.dispatchEvent(new Event('cartUpdated'));
-        showSuccess("Free product added to cart!");
-      } else {
-        showError(response.message || "Failed to add product to cart");
-      }
-    } catch (error) {
-      console.error("Failed to add to cart:", error);
-      showError("Failed to add product to cart. Please try again.");
-    } finally {
-      setAddingToCart(prev => ({ ...prev, [product.id]: false }));
-    }
+  const handleProductClick = (product) => {
+    // Close the popup and navigate to product detail page with flag to indicate it's a free product
+    onClose();
+    navigate(`/product/${product.id}?isFreeProduct=true`);
   };
 
   return (
@@ -86,10 +47,9 @@ const BOGOPopup = ({ isOpen, onClose, freeProducts, discountText }) => {
               <div className="flex gap-4">
                 {/* Product Image - Left Side */}
                 <div className="flex-shrink-0">
-                  <Link
-                    to={`/product/${product.id}`}
-                    onClick={onClose}
-                    className="block w-24 h-24 sm:w-32 sm:h-32 bg-gray-50 rounded-lg overflow-hidden"
+                  <div
+                    onClick={() => handleProductClick(product)}
+                    className="block w-24 h-24 sm:w-32 sm:h-32 bg-gray-50 rounded-lg overflow-hidden cursor-pointer"
                   >
                     <img
                       src={product.main_image || '/placeholder-image.jpg'}
@@ -99,7 +59,7 @@ const BOGOPopup = ({ isOpen, onClose, freeProducts, discountText }) => {
                         e.target.src = 'https://via.placeholder.com/300?text=No+Image';
                       }}
                     />
-                  </Link>
+                  </div>
                 </div>
 
                 {/* Product Info - Right Side */}
@@ -123,14 +83,13 @@ const BOGOPopup = ({ isOpen, onClose, freeProducts, discountText }) => {
                     </span>
                   </div>
 
-                  {/* Add to Cart Button */}
+                  {/* View Product Button */}
                   <button
-                    onClick={() => handleAddToCart(product)}
-                    disabled={addingToCart[product.id]}
-                    className="flex items-center justify-end gap-1 text-[#ec1b45] hover:text-[#d91b40] font-medium text-sm sm:text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-auto"
+                    onClick={() => handleProductClick(product)}
+                    className="flex items-center justify-end gap-1 text-[#ec1b45] hover:text-[#d91b40] font-medium text-sm sm:text-base transition-colors mt-auto"
                   >
-                    <span>{addingToCart[product.id] ? 'Adding...' : 'Add to cart'}</span>
-                    {!addingToCart[product.id] && <FaChevronRight size={14} />}
+                    <span>Select Product</span>
+                    <FaChevronRight size={14} />
                   </button>
                 </div>
               </div>

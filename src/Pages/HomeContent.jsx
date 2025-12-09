@@ -7,7 +7,7 @@ import TopBrands from "../components/TopBrands";
 
 const HomeContent = () => {
   return (
-    <div className="px-2 sm:px-4 space-y-4 sm:space-y-6 md:space-y-8">
+    <div className="px-2 sm:px-4 space-y-3 sm:space-y-6 md:space-y-8">
       <Banner />
       <DiscountCategories />
       <LimitedDiscountProducts />

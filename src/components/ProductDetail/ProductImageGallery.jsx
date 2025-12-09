@@ -7,7 +7,7 @@ const ProductImageGallery = ({
   sizeChartImage 
 }) => {
   return (
-    <div className="w-full lg:flex-1 lg:max-w-xl">
+    <>
       {/* Main Image */}
       <div className="mb-2 sm:mb-3">
         <img
@@ -53,7 +53,7 @@ const ProductImageGallery = ({
           })}
         </div>
       )}
-    </div>
+    </>
   );
 };
 

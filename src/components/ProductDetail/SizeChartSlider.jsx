@@ -84,7 +84,7 @@ const SizeChartSlider = ({
                         ₹{originalPrice?.toLocaleString('en-IN')}
                       </span>
                     )}
-                    <span className="text-xs text-[#ec1b45] font-semibold bg-red-50 px-1.5 sm:px-2 py-0.5 rounded">
+                    <span className="text-xs text-[#ec1b45] font-semibold px-1.5 sm:px-2 py-0.5 rounded">
                       {isBogo && discountText ? discountText : `${discountPercentage}% OFF`}
                     </span>
                   </>

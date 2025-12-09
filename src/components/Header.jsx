@@ -28,7 +28,9 @@ const Header = () => {
   const wishlistCount = useSelector(selectWishlistCount);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [cartCount, setCartCount] = useState(0);
-  const dropdownRef = useRef(null);
+  const desktopDropdownRef = useRef(null);
+  const mobileDropdownRef = useRef(null);
+  const profileDropdownTimeoutRef = useRef(null);
   const location = useLocation();
 
   // Search states
@@ -81,8 +83,23 @@ const Header = () => {
       const clickedElement = event.target;
 
       // Check if click is outside profile dropdown (works for both desktop and mobile)
-      const isInsideProfileDropdown = dropdownRef.current?.contains(clickedElement);
+      const isInsideDesktopDropdown = desktopDropdownRef.current?.contains(clickedElement);
+      const isInsideMobileDropdown = mobileDropdownRef.current?.contains(clickedElement);
+      const isInsideProfileDropdown = isInsideDesktopDropdown || isInsideMobileDropdown;
+      
       if (showProfileDropdown && !isInsideProfileDropdown) {
+        console.log('[HEADER] Click outside profile dropdown detected');
+        console.log('[HEADER] Clicked element:', clickedElement);
+        console.log('[HEADER] Desktop dropdown ref element:', desktopDropdownRef.current);
+        console.log('[HEADER] Mobile dropdown ref element:', mobileDropdownRef.current);
+        console.log('[HEADER] Is inside desktop dropdown:', isInsideDesktopDropdown);
+        console.log('[HEADER] Is inside mobile dropdown:', isInsideMobileDropdown);
+        // Clear any pending timeout when closing via click
+        if (profileDropdownTimeoutRef.current) {
+          console.log('[HEADER] Clearing timeout due to outside click');
+          clearTimeout(profileDropdownTimeoutRef.current);
+          profileDropdownTimeoutRef.current = null;
+        }
         setShowProfileDropdown(false);
       }
 
@@ -109,6 +126,11 @@ const Header = () => {
 
     return () => {
       document.removeEventListener('click', handleClickOutside, true);
+      // Cleanup timeout on unmount
+      if (profileDropdownTimeoutRef.current) {
+        clearTimeout(profileDropdownTimeoutRef.current);
+        profileDropdownTimeoutRef.current = null;
+      }
     };
   }, [showProfileDropdown, showSearchDropdown, showNotificationDropdown]);
 
@@ -278,7 +300,7 @@ const Header = () => {
               onChange={handleSearchChange}
               onFocus={handleSearchFocus}
               placeholder="Search By Subcategory..."
-              className="w-full px-10 py-2 border-2 border-gray-200 outline-none focus:ring-2 focus:ring-[#ec1b45] rounded text-xs lg:text-sm transition-colors duration-300 focus:transition-shadow"
+              className="w-full px-10 py-2 border-2 border-gray-200 outline-none focus:ring-2 focus:ring-[#ec1b45] rounded-lg text-xs lg:text-sm transition-colors duration-300 focus:transition-shadow"
             />
 
             {/* Search Suggestions Dropdown */}
@@ -342,9 +364,26 @@ const Header = () => {
           {/* My Account - hidden on small screens - with dropdown */}
           <div
             className="hidden sm:block relative z-[100]"
-            ref={dropdownRef}
-            onMouseEnter={() => setShowProfileDropdown(true)}
-            onMouseLeave={() => setShowProfileDropdown(false)}
+            ref={desktopDropdownRef}
+            onMouseEnter={() => {
+              console.log('[HEADER] Desktop profile container onMouseEnter triggered');
+              // Clear any existing timeout when mouse enters
+              if (profileDropdownTimeoutRef.current) {
+                console.log('[HEADER] Clearing existing timeout on mouse enter');
+                clearTimeout(profileDropdownTimeoutRef.current);
+                profileDropdownTimeoutRef.current = null;
+              }
+              setShowProfileDropdown(true);
+            }}
+            onMouseLeave={(e) => {
+              console.log('[HEADER] Desktop profile container onMouseLeave triggered');
+              console.log('[HEADER] MouseLeave event target:', e.target);
+              // Set a delay before closing the dropdown
+              profileDropdownTimeoutRef.current = setTimeout(() => {
+                console.log('[HEADER] Desktop profile dropdown timeout executed - closing dropdown');
+                setShowProfileDropdown(false);
+              }, 300); // 300ms delay
+            }}
           >
             <button className="flex flex-col items-center text-gray-700 hover:text-[#ec1b45] px-1 sm:px-2">
               <GoPerson size={20} />
@@ -353,7 +392,27 @@ const Header = () => {
 
             {/* Dropdown Menu */}
             {showProfileDropdown && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg border border-gray-200 z-[100] animate-fade-in-down">
+              <div 
+                className="absolute right-0 mt-2 w-56 bg-white rounded-lg border border-gray-200 z-[100] animate-fade-in-down"
+                onMouseEnter={() => {
+                  console.log('[HEADER] Desktop dropdown menu onMouseEnter triggered');
+                  // Clear timeout when mouse enters dropdown
+                  if (profileDropdownTimeoutRef.current) {
+                    console.log('[HEADER] Clearing existing timeout on dropdown mouse enter');
+                    clearTimeout(profileDropdownTimeoutRef.current);
+                    profileDropdownTimeoutRef.current = null;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  console.log('[HEADER] Desktop dropdown menu onMouseLeave triggered');
+                  console.log('[HEADER] MouseLeave event target:', e.target);
+                  // Set delay when mouse leaves dropdown
+                  profileDropdownTimeoutRef.current = setTimeout(() => {
+                    console.log('[HEADER] Desktop dropdown menu timeout executed - closing dropdown');
+                    setShowProfileDropdown(false);
+                  }, 300); // 300ms delay
+                }}
+              >
                 <div className="py-2">
                   {menuOptions.map((option) => {
                     const isActive = location.pathname === option.path;
@@ -374,9 +433,40 @@ const Header = () => {
                   })}
                   <div className="border-t border-gray-200 mt-1 pt-1">
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        console.log('[HEADER] Desktop logout button clicked');
+                        console.log('[HEADER] Event details:', {
+                          type: e.type,
+                          target: e.target,
+                          currentTarget: e.currentTarget,
+                          defaultPrevented: e.defaultPrevented,
+                          isPropagationStopped: e.isPropagationStopped
+                        });
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Clear any pending timeout to prevent dropdown from closing
+                        if (profileDropdownTimeoutRef.current) {
+                          console.log('[HEADER] Clearing pending timeout before logout');
+                          clearTimeout(profileDropdownTimeoutRef.current);
+                          profileDropdownTimeoutRef.current = null;
+                        }
+                        
+                        console.log('[HEADER] Calling logout function');
                         logout();
+                        console.log('[HEADER] Closing dropdown');
                         setShowProfileDropdown(false);
+                      }}
+                      onMouseDown={(e) => {
+                        console.log('[HEADER] Desktop logout button mousedown');
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // Clear timeout on mousedown to prevent dropdown from closing
+                        if (profileDropdownTimeoutRef.current) {
+                          console.log('[HEADER] Clearing timeout on mousedown');
+                          clearTimeout(profileDropdownTimeoutRef.current);
+                          profileDropdownTimeoutRef.current = null;
+                        }
                       }}
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 w-full transition-colors"
                     >
@@ -393,7 +483,7 @@ const Header = () => {
           {/* My Account - Mobile only - with dropdown */}
           <div
             className="sm:hidden relative z-[100]"
-            ref={dropdownRef}
+            ref={mobileDropdownRef}
           >
             <button
               onClick={() => setShowProfileDropdown(!showProfileDropdown)}
@@ -533,7 +623,7 @@ const Header = () => {
             onChange={handleSearchChange}
             onFocus={handleSearchFocus}
             placeholder="Search By Subcategory..."
-            className="w-full px-10 py-2 border-2 border-gray-200 outline-none focus:ring-2 focus:ring-[#ec1b45] rounded text-xs transition-colors duration-300 focus:transition-shadow"
+            className="w-full px-10 py-2 border-2 border-gray-200 outline-none focus:ring-2 focus:ring-[#ec1b45] rounded-lg text-xs transition-colors duration-300 focus:transition-shadow"
           />
 
           {/* Mobile Search Suggestions Dropdown */}

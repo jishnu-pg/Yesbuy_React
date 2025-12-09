@@ -320,14 +320,29 @@ const OrderDetailPage = () => {
                 )}
               </div>
 
-              {/* Payment Method */}
-              {orderDetail.payment_method && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium">Payment Method:</span> {orderDetail.payment_method}
-                  </p>
+              {/* Payment Method and Coupon */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                  {/* Payment Method */}
+                  {orderDetail.payment_method && (
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Payment Method:</span> {orderDetail.payment_method}
+                    </p>
+                  )}
+                  
+                  {/* Coupon Information */}
+                  {orderDetail.coupon_name && (
+                    <div className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border border-green-300 shadow-sm w-fit">
+                      <div className="bg-green-500 rounded-full p-1">
+                        <FaTag className="text-white" size={10} />
+                      </div>
+                      <span className="text-green-700 font-bold text-sm">
+                        {orderDetail.coupon_name}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
@@ -409,15 +424,6 @@ const OrderDetailPage = () => {
             )}
           </div>
         </div>
-
-        {/* Coupon Information */}
-        {orderDetail.coupon_name && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <p className="text-sm text-green-800">
-              <span className="font-medium">Coupon Applied:</span> {orderDetail.coupon_name}
-            </p>
-          </div>
-        )}
       </div>
 
       {/* You May Like Section */}

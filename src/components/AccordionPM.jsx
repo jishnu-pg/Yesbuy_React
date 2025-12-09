@@ -1,16 +1,16 @@
-import { IoIosAdd, IoIosRemove } from "react-icons/io";
+import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 
 const AccordionPM = ({ title, isOpen, onToggle, children }) => (
-    <div className="mb-4 border-b border-gray-200 pb-2">
+    <div className="mb-4">
       <button
         onClick={onToggle}
         className="flex items-center justify-between w-full py-2 text-left font-medium hover:text-[#ec1b45] transition-colors"
       >
-        <span>{title}</span>
+        <div className="flex items-center gap-2">{title}</div>
         {isOpen ? (
-          <IoIosRemove className="text-gray-500 transition-transform duration-200" />
+          <FaChevronUp className="text-gray-500 transition-transform duration-200" size={14} />
         ) : (
-          <IoIosAdd className="text-gray-500 transition-transform duration-200" />
+          <FaChevronDown className="text-gray-500 transition-transform duration-200" size={14} />
         )}
       </button>
       <div 

@@ -90,10 +90,10 @@ const LimitedDiscountProducts = () => {
 
   return (
     <div className="relative">
-      <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-center font-bold text-gray-800 mb-3 sm:mb-4 md:mb-5 tracking-tight">
+      <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-center font-bold text-gray-800 mb-2 sm:mb-4 md:mb-5 tracking-tight">
         Featured <span className="text-[#ec1b45]">Deals</span>
       </h1>
-      <div className="mt-2 sm:mt-3">
+      <div className="mt-1 sm:mt-3">
         <Carousel
         items={data}
         itemsPerPage={ITEMS_PER_PAGE}

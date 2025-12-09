@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState, useContext, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import ProductDetailShimmer from "../Pages/ProductDetailShimmer ";
@@ -24,6 +24,8 @@ import BOGOPopup from "../components/ProductDetail/BOGOPopup";
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isFreeProduct = searchParams.get('isFreeProduct') === 'true';
   const [productData, setProductData] = useState(null);
   const [variants, setVariants] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -410,8 +412,9 @@ const ProductDetail = () => {
         window.dispatchEvent(new Event('cartUpdated'));
         showCartToast();
 
-        // Check for BOGO offer and show popup
-        if (selectedVariant?.discount_price?.is_bogo &&
+        // Check for BOGO offer and show popup (but skip if this is a free product from BOGO offer)
+        if (!isFreeProduct &&
+          selectedVariant?.discount_price?.is_bogo &&
           selectedVariant?.discount_price?.products &&
           selectedVariant.discount_price.products.length > 0) {
           setBogoFreeProducts(selectedVariant.discount_price.products);
@@ -577,16 +580,22 @@ const ProductDetail = () => {
 
   return (
     <div className="p-2 sm:p-4 max-w-7xl mx-auto">
-      <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8">
-        {/* Image Gallery */}
-        <ProductImageGallery
-          mainImage={mainImage}
-          allThumbnailImages={allThumbnailImages}
-          mainImageIndex={mainImageIndex}
-          setMainImageIndex={handleImageSelect}
-          productName={product.name}
-          sizeChartImage={sizeChartImage}
-        />
+      <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-12">
+        {/* Left Side - Image Gallery and Policies */}
+        <div className="w-full lg:flex-1 lg:max-w-xl">
+          <ProductImageGallery
+            mainImage={mainImage}
+            allThumbnailImages={allThumbnailImages}
+            mainImageIndex={mainImageIndex}
+            setMainImageIndex={handleImageSelect}
+            productName={product.name}
+            sizeChartImage={sizeChartImage}
+          />
+          {/* Policies - Desktop only (below image) */}
+          <div className="hidden lg:block">
+            <ProductPolicies product={product} />
+          </div>
+        </div>
 
         {/* Product Details */}
         <div className="w-full lg:flex-1">
@@ -640,7 +649,10 @@ const ProductDetail = () => {
               onAddToFavorite={handleAddToFavorite}
             />
 
-            <ProductPolicies product={product} />
+            {/* Policies - Mobile only (below favorite button) */}
+            <div className="lg:hidden">
+              <ProductPolicies product={product} />
+            </div>
           </div>
         </div>
       </div>

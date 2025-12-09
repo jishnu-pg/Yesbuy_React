@@ -50,7 +50,7 @@ const Carousel = ({
           {pages.map((group, idx) => (
             <div
               key={idx}
-              className="flex-shrink-0 w-full grid grid-cols-2 grid-rows-2 sm:grid-cols-4 sm:grid-rows-1 md:grid-cols-4 md:grid-rows-1 lg:grid-cols-6 gap-6"
+              className="flex-shrink-0 w-full grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 md:gap-6"
               style={{ width: `${100 / numPages}%` }}
             >
               {group.map((item, i) => renderItem(item, i))}

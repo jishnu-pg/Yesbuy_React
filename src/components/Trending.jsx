@@ -100,10 +100,10 @@ const Trending = () => {
 
   return (
     <div className="relative w-full -mx-2 sm:-mx-4 px-2 sm:px-4">
-      <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-center font-bold text-gray-800 mb-3 sm:mb-4 md:mb-5 tracking-tight">
+      <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-center font-bold text-gray-800 mb-2 sm:mb-4 md:mb-5 tracking-tight">
         <span className="text-[#ec1b45]">YB</span> Trendings
       </h1>
-      <div className="mt-2 sm:mt-3">
+      <div className="mt-1 sm:mt-3">
         <Carousel
         items={data}
         itemsPerPage={ITEMS_PER_PAGE}

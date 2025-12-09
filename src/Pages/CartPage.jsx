@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { FaTrash, FaShoppingBag, FaTimes, FaExclamationTriangle, FaTag, FaCheckCircle, FaArrowRight, FaChevronDown, FaMinus, FaPlus } from "react-icons/fa";
 import { getCart, deleteCartItem, addToCart } from "../services/api/cart";
-import { removeCoupon } from "../services/api/coupon";
+import { removeCoupon, applyCoupon } from "../services/api/coupon";
 import { showError, showSuccess } from "../utils/toast";
 import LoaderSpinner from "../components/LoaderSpinner";
 
@@ -64,9 +64,22 @@ const CartPage = () => {
       }
     } catch (error) {
       console.error("Failed to fetch cart:", error);
-      const errorMessage = error?.message || "Failed to load cart. Please try again.";
-      showError(errorMessage);
+      const errorMessage = error?.message || "";
+      
+      // Don't show error toast for empty cart or "no active cart" messages
+      // These are normal states, not errors
+      const isCartNotFoundError = errorMessage.toLowerCase().includes("no active cart") ||
+                                   errorMessage.toLowerCase().includes("cart not found") ||
+                                   errorMessage.toLowerCase().includes("no cart");
+      
+      if (!isCartNotFoundError && errorMessage) {
+        // Only show error for actual errors, not empty cart scenarios
+        showError(errorMessage);
+      }
+      
       setCartData(null);
+      // Dispatch event even if cart fetch fails (to update header count)
+      window.dispatchEvent(new Event('cartUpdated'));
     } finally {
       setIsLoading(false);
     }
@@ -130,6 +143,14 @@ const CartPage = () => {
       // Get cart_id from current cart data
       const cartId = cartData?.cart_id || '0';
 
+      // Preserve coupon code before updating size
+      const couponCodeToReapply = appliedCouponCode || 
+        cartData?.coupon_details?.code ||
+        cartData?.bill_details?.coupon_applied ||
+        cartData?.bill_details?.coupon_code ||
+        cartData?.coupon_code ||
+        cartData?.applied_coupon;
+
       // Delete the old cart item
       await deleteCartItem(cartItem.id);
 
@@ -162,8 +183,26 @@ const CartPage = () => {
       const response = await addToCart(cartId, cartItemData);
 
       if (response.status) {
-        showSuccess("Size updated successfully");
+        // Fetch cart to get updated cart data
+        const updatedCartResponse = await getCart(cartId);
+        
+        // Re-apply coupon if it was applied before
+        if (couponCodeToReapply && updatedCartResponse?.data) {
+          try {
+            const updatedCartId = updatedCartResponse.data.cart_id || cartId;
+            await applyCoupon({
+              coupon_code: couponCodeToReapply,
+              cart_id: updatedCartId
+            });
+          } catch (couponError) {
+            console.error("Failed to re-apply coupon:", couponError);
+            // Don't show error to user as size update was successful
+          }
+        }
+        
+        // Fetch cart again to get final state with coupon applied
         await fetchCart();
+        showSuccess("Size updated successfully");
       } else {
         showError(response.message || "Failed to update size");
       }
@@ -205,6 +244,14 @@ const CartPage = () => {
       // Get cart_id from current cart data
       const cartId = cartData?.cart_id || '0';
 
+      // Preserve coupon code before updating quantity
+      const couponCodeToReapply = appliedCouponCode || 
+        cartData?.coupon_details?.code ||
+        cartData?.bill_details?.coupon_applied ||
+        cartData?.bill_details?.coupon_code ||
+        cartData?.coupon_code ||
+        cartData?.applied_coupon;
+
       // Delete the old cart item
       await deleteCartItem(cartItem.id);
 
@@ -236,8 +283,27 @@ const CartPage = () => {
       const response = await addToCart(cartId, cartItemData);
 
       if (response.status) {
-        showSuccess("Quantity updated successfully");
+        // Fetch cart to get updated cart data
+        const updatedCartResponse = await getCart(cartId);
+        
+        // Re-apply coupon if it was applied before
+        if (couponCodeToReapply && updatedCartResponse?.data) {
+          try {
+            const updatedCartId = updatedCartResponse.data.cart_id || cartId;
+            await applyCoupon({
+              coupon_code: couponCodeToReapply,
+              cart_id: updatedCartId
+            });
+          } catch (couponError) {
+            console.error("Failed to re-apply coupon:", couponError);
+            // Don't show error to user as quantity update was successful
+            // The coupon might have been invalidated due to cart changes
+          }
+        }
+        
+        // Fetch cart again to get final state with coupon applied
         await fetchCart();
+        showSuccess("Quantity updated successfully");
       } else {
         showError(response.message || "Failed to update quantity");
       }
@@ -277,6 +343,14 @@ const CartPage = () => {
       // Get cart_id from current cart data
       const cartId = cartData?.cart_id || '0';
 
+      // Preserve coupon code before updating meter
+      const couponCodeToReapply = appliedCouponCode || 
+        cartData?.coupon_details?.code ||
+        cartData?.bill_details?.coupon_applied ||
+        cartData?.bill_details?.coupon_code ||
+        cartData?.coupon_code ||
+        cartData?.applied_coupon;
+
       // Delete the old cart item
       await deleteCartItem(cartItem.id);
 
@@ -299,8 +373,26 @@ const CartPage = () => {
       const response = await addToCart(cartId, cartItemData);
 
       if (response.status) {
-        showSuccess("Meter updated successfully");
+        // Fetch cart to get updated cart data
+        const updatedCartResponse = await getCart(cartId);
+        
+        // Re-apply coupon if it was applied before
+        if (couponCodeToReapply && updatedCartResponse?.data) {
+          try {
+            const updatedCartId = updatedCartResponse.data.cart_id || cartId;
+            await applyCoupon({
+              coupon_code: couponCodeToReapply,
+              cart_id: updatedCartId
+            });
+          } catch (couponError) {
+            console.error("Failed to re-apply coupon:", couponError);
+            // Don't show error to user as meter update was successful
+          }
+        }
+        
+        // Fetch cart again to get final state with coupon applied
         await fetchCart();
+        showSuccess("Meter updated successfully");
       } else {
         showError(response.message || "Failed to update meter");
       }
@@ -495,11 +587,6 @@ const CartPage = () => {
                                           >
                                             <div className="flex items-center justify-between">
                                               <span>{sizeOption.size}</span>
-                                              {sizeOption.available_count !== undefined && (
-                                                <span className="text-xs text-gray-500">
-                                                  ({sizeOption.available_count} left)
-                                                </span>
-                                              )}
                                             </div>
                                           </button>
                                         ))}
@@ -614,7 +701,7 @@ const CartPage = () => {
                               </span>
                             )}
                             {cartItem.has_discount && cartItem.discount && (
-                              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">
+                              <span className="px-2 py-1 text-[#ec1b45] text-xs font-semibold rounded">
                                 {cartItem.discount}
                               </span>
                             )}

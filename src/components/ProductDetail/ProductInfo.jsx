@@ -35,7 +35,7 @@ const ProductInfo = ({
                   ₹{originalPrice?.toLocaleString('en-IN')}
                 </p>
               )}
-              <span className="text-xs sm:text-sm text-[#ec1b45] font-semibold bg-red-50 px-2 py-1 rounded">
+              <span className="text-xs sm:text-sm text-[#ec1b45] font-semibold px-2 py-1 rounded">
                 {isBogo && discountText ? discountText : `${discountPercentage}% OFF`}
               </span>
             </>
