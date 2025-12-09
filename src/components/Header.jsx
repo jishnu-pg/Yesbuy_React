@@ -427,7 +427,14 @@ const Header = () => {
               >
                 <div className="py-2">
                   {menuOptions.map((option) => {
-                    const isActive = location.pathname === option.path;
+                    // Check if current path matches the option path
+                    // Special handling for orders: highlight if on /orders or /order/*
+                    let isActive = false;
+                    if (option.key === 'orders') {
+                      isActive = location.pathname === option.path || location.pathname.startsWith('/order/');
+                    } else {
+                      isActive = location.pathname === option.path || location.pathname.startsWith(`${option.path}/`);
+                    }
                     return (
                       <Link
                         key={option.key}
@@ -522,7 +529,14 @@ const Header = () => {
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg border border-gray-200 z-[100] animate-fade-in-down shadow-xl">
                 <div className="py-2">
                   {menuOptions.map((option) => {
-                    const isActive = location.pathname === option.path;
+                    // Check if current path matches the option path
+                    // Special handling for orders: highlight if on /orders or /order/*
+                    let isActive = false;
+                    if (option.key === 'orders') {
+                      isActive = location.pathname === option.path || location.pathname.startsWith('/order/');
+                    } else {
+                      isActive = location.pathname === option.path || location.pathname.startsWith(`${option.path}/`);
+                    }
                     return (
                       <Link
                         key={option.key}
