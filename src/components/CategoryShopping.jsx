@@ -54,29 +54,29 @@ const CategoryShopping = () => {
         Shop <span className="text-[#ec1b45]">YB</span> Category
       </h1>
       {categories.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 justify-center">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 justify-center">
           {categories.map((cat) => (
             <Link
               key={cat.id}
               to={`/category/${cat.id}`}
-              className="bg-white flex flex-col items-center justify-center h-70 text-lg font-semibold text-gray-700 hover:text-white transition relative overflow-hidden rounded-lg"
+              className="bg-white flex flex-col items-center justify-center text-lg font-semibold text-gray-700 hover:text-white transition relative overflow-hidden rounded-lg aspect-square"
             >
               <div className="absolute bottom-2 left-2 right-2 z-10 flex flex-col items-center bg-[#ec1b45]/70 text-white text-xs font-bold px-2 py-2 rounded shadow-lg space-y-1">
                 <span className="text-[18px]">{cat.name}</span>
                 <span className="text-[17px]">Shop Now</span>
               </div>
 
-                  {/* Category images: 684×684 pixels (1:1 ratio) */}
-                  <div className="w-full h-full aspect-square overflow-hidden">
-              <img
-                src={cat.image}
-                alt={cat.name}
-                className="w-full h-full object-cover object-top-right"
-                      onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/300?text=No+Image";
-                      }}
-              />
-                  </div>
+              {/* Category images: 684×684 pixels (1:1 ratio) */}
+              <div className="w-full h-full aspect-square overflow-hidden">
+                <img
+                  src={cat.image}
+                  alt={cat.name}
+                  className="w-full h-full object-cover object-top-right"
+                  onError={(e) => {
+                    e.target.src = "https://via.placeholder.com/300?text=No+Image";
+                  }}
+                />
+              </div>
             </Link>
           ))}
         </div>

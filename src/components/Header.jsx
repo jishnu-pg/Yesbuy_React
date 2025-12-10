@@ -325,14 +325,16 @@ const Header = () => {
                       >
                         <div className="flex items-center gap-3">
                           {result.sub_category_image && (
-                            <img
-                              src={result.sub_category_image}
-                              alt={result.name}
-                              className="w-10 h-10 object-cover rounded"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                              }}
-                            />
+                            <div className="w-10 h-10 aspect-square flex-shrink-0 overflow-hidden rounded">
+                              <img
+                                src={result.sub_category_image}
+                                alt={result.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            </div>
                           )}
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm font-medium truncate ${index === selectedIndex ? 'text-white' : 'text-gray-900'
