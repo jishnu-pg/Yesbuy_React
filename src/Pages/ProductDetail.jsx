@@ -534,11 +534,15 @@ const ProductDetail = () => {
     }
   }, [currentImages.length, imagesInitialized]);
 
+  const [isZooming, setIsZooming] = useState(false);
+
+  // ... (existing helper functions)
+
   // Auto-scroll through images (including size chart)
   useEffect(() => {
     const totalImages = allImagesForMainDisplay.length;
-    if (totalImages <= 1 || isAutoScrollPaused || isLoading || !imagesInitialized) {
-      return; // Don't auto-scroll if there's only one image, if paused, if still loading, or if images not initialized yet
+    if (totalImages <= 1 || isAutoScrollPaused || isZooming || isLoading || !imagesInitialized) {
+      return; // Don't auto-scroll if zooming, paused, loading, etc.
     }
 
     let interval = null;
@@ -559,7 +563,7 @@ const ProductDetail = () => {
         clearInterval(interval);
       }
     };
-  }, [allImagesForMainDisplay.length, isAutoScrollPaused, isLoading, imagesInitialized]);
+  }, [allImagesForMainDisplay.length, isAutoScrollPaused, isZooming, isLoading, imagesInitialized]);
 
   // Early return AFTER all hooks
   if (isLoading || !productData) {
@@ -590,6 +594,7 @@ const ProductDetail = () => {
             setMainImageIndex={handleImageSelect}
             productName={product.name}
             sizeChartImage={sizeChartImage}
+            onZoomChange={setIsZooming}
           />
           {/* Policies - Desktop only (below image) */}
           <div className="hidden lg:block">

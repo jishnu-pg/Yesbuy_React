@@ -12,10 +12,10 @@ const CategoryShopping = () => {
     fetchCategories();
   }, []);
 
-    const fetchCategories = async () => {
-      try {
-        setIsLoading(true);
-        const response = await getAllCategories();
+  const fetchCategories = async () => {
+    try {
+      setIsLoading(true);
+      const response = await getAllCategories();
 
       if (response.results && response.results.length > 0) {
         const mappedCategories = response.results.map((category) => ({
@@ -28,14 +28,14 @@ const CategoryShopping = () => {
       } else {
         setCategories([]);
       }
-      } catch (error) {
-        console.error("Failed to fetch categories:", error);
-        showError("Failed to load categories. Please try again.");
-        setCategories([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    } catch (error) {
+      console.error("Failed to fetch categories:", error);
+      showError("Failed to load categories. Please try again.");
+      setCategories([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -61,9 +61,9 @@ const CategoryShopping = () => {
               to={`/category/${cat.id}`}
               className="bg-white flex flex-col items-center justify-center text-lg font-semibold text-gray-700 hover:text-white transition relative overflow-hidden rounded-lg aspect-square"
             >
-              <div className="absolute bottom-2 left-2 right-2 z-10 flex flex-col items-center bg-[#ec1b45]/70 text-white text-xs font-bold px-2 py-2 rounded shadow-lg space-y-1">
-                <span className="text-[18px]">{cat.name}</span>
-                <span className="text-[17px]">Shop Now</span>
+              <div className="absolute bottom-2 left-2 right-2 z-10 flex flex-col items-center bg-[#ec1b45]/70 text-white text-xs font-bold px-1.5 py-1.5 rounded shadow-lg space-y-0.5">
+                <span className="text-[14px]">{cat.name}</span>
+                <span className="text-[12px]">Shop Now</span>
               </div>
 
               {/* Category images: 684×684 pixels (1:1 ratio) */}
