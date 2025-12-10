@@ -141,20 +141,20 @@ const ReturnOrderPage = () => {
         </div>
 
         {/* Order ID */}
-        <div className="mb-8">
+        <div className="mb-4 sm:mb-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Order ID</p>
-              <p className="text-xl font-bold text-gray-900">
+            <div className="flex items-center gap-2">
+              <p className="text-base sm:text-lg font-bold text-gray-700">ORDER ID :</p>
+              <p className="text-base sm:text-lg font-bold text-gray-700">
                 {orderDetail.item_order_id || 'N/A'}
               </p>
             </div>
             {orderDetail.item_order_id && (
               <button
                 onClick={copyOrderId}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm font-medium text-gray-700"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors text-xs font-medium text-gray-400 hover:text-gray-600"
               >
-                <FaCopy size={14} />
+                <FaCopy size={12} />
                 <span>Copy</span>
               </button>
             )}
@@ -259,11 +259,10 @@ const ReturnOrderPage = () => {
               return (
                 <label
                   key={reasonText}
-                  className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                    isSelected
-                      ? 'bg-red-50'
-                      : 'hover:bg-gray-50'
-                  }`}
+                  className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${isSelected
+                    ? 'bg-red-50'
+                    : 'hover:bg-gray-50'
+                    }`}
                 >
                   <input
                     type="radio"
@@ -271,7 +270,7 @@ const ReturnOrderPage = () => {
                     value={reasonText}
                     checked={isSelected}
                     onChange={(e) => setSelectedReason(e.target.value)}
-                    className="mt-0.5 w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45] focus:ring-2"
+                    className="mt-0.5 w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-0 focus:outline-none"
                     style={{ accentColor: '#ec1b45' }}
                   />
                   <span className={`text-sm flex-1 ${isSelected ? 'text-gray-900 font-medium' : 'text-gray-700'}`}>
@@ -286,7 +285,8 @@ const ReturnOrderPage = () => {
         {/* Additional Comment */}
         <div className="mb-8">
           <label className="block text-sm font-semibold text-gray-900 mb-2">
-            Additional Comment <span className="text-gray-500 font-normal">(Optional)</span>
+            Additional Comment
+            {/* <span className="text-gray-500 font-normal">(Optional)</span> */}
           </label>
           <textarea
             value={additionalComment}

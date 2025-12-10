@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { FaTrash, FaShoppingBag, FaTimes, FaExclamationTriangle, FaTag, FaCheckCircle, FaArrowRight, FaChevronDown, FaMinus, FaPlus } from "react-icons/fa";
 import { getCart, deleteCartItem, addToCart } from "../services/api/cart";
 import { removeCoupon, applyCoupon } from "../services/api/coupon";
+import { pickupFromStore } from "../services/api/order";
 import { showError, showSuccess } from "../utils/toast";
 import LoaderSpinner from "../components/LoaderSpinner";
 
@@ -21,6 +22,45 @@ const CartPage = () => {
   // Size and quantity update states
   const [updatingItemId, setUpdatingItemId] = useState(null);
   const [openSizeDropdown, setOpenSizeDropdown] = useState(null); // Track which item's dropdown is open
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+
+  const handleCheckout = async () => {
+    if (selectedPaymentMethod === 'PICKUP IN STORE') {
+      // Handle pickup from store
+      try {
+        const cartId = cartData?.cart_id;
+        if (!cartId) {
+          showError("Cart not found");
+          return;
+        }
+        
+        const response = await pickupFromStore(cartId);
+        
+        if (response.order_id) {
+          // Navigate to success page with order details
+          navigate('/pickup-success', { 
+            state: { 
+              orderData: response,
+              cartData: cartData
+            } 
+          });
+        } else {
+          showError(response.message || "Failed to create pickup order");
+        }
+      } catch (error) {
+        console.error("Failed to create pickup order:", error);
+        showError(error?.message || "Failed to create pickup order. Please try again.");
+      }
+    } else {
+      // Regular checkout flow
+      if (!selectedPaymentMethod) {
+        showError("Please select a payment method to proceed");
+        return;
+      }
+      // Navigate with state if needed, or just standard navigation
+      navigate('/checkout', { state: { paymentMethod: selectedPaymentMethod } });
+    }
+  };
 
   useEffect(() => {
     fetchCart();
@@ -30,6 +70,7 @@ const CartPage = () => {
   useEffect(() => {
     if (!cartData) {
       setAppliedCouponCode(null);
+      // Don't auto-select payment method
       return;
     }
 
@@ -65,18 +106,18 @@ const CartPage = () => {
     } catch (error) {
       console.error("Failed to fetch cart:", error);
       const errorMessage = error?.message || "";
-      
+
       // Don't show error toast for empty cart or "no active cart" messages
       // These are normal states, not errors
       const isCartNotFoundError = errorMessage.toLowerCase().includes("no active cart") ||
-                                   errorMessage.toLowerCase().includes("cart not found") ||
-                                   errorMessage.toLowerCase().includes("no cart");
-      
+        errorMessage.toLowerCase().includes("cart not found") ||
+        errorMessage.toLowerCase().includes("no cart");
+
       if (!isCartNotFoundError && errorMessage) {
         // Only show error for actual errors, not empty cart scenarios
         showError(errorMessage);
       }
-      
+
       setCartData(null);
       // Dispatch event even if cart fetch fails (to update header count)
       window.dispatchEvent(new Event('cartUpdated'));
@@ -144,7 +185,7 @@ const CartPage = () => {
       const cartId = cartData?.cart_id || '0';
 
       // Preserve coupon code before updating size
-      const couponCodeToReapply = appliedCouponCode || 
+      const couponCodeToReapply = appliedCouponCode ||
         cartData?.coupon_details?.code ||
         cartData?.bill_details?.coupon_applied ||
         cartData?.bill_details?.coupon_code ||
@@ -185,7 +226,7 @@ const CartPage = () => {
       if (response.status) {
         // Fetch cart to get updated cart data
         const updatedCartResponse = await getCart(cartId);
-        
+
         // Re-apply coupon if it was applied before
         if (couponCodeToReapply && updatedCartResponse?.data) {
           try {
@@ -199,7 +240,7 @@ const CartPage = () => {
             // Don't show error to user as size update was successful
           }
         }
-        
+
         // Fetch cart again to get final state with coupon applied
         await fetchCart();
         showSuccess("Size updated successfully");
@@ -245,7 +286,7 @@ const CartPage = () => {
       const cartId = cartData?.cart_id || '0';
 
       // Preserve coupon code before updating quantity
-      const couponCodeToReapply = appliedCouponCode || 
+      const couponCodeToReapply = appliedCouponCode ||
         cartData?.coupon_details?.code ||
         cartData?.bill_details?.coupon_applied ||
         cartData?.bill_details?.coupon_code ||
@@ -285,7 +326,7 @@ const CartPage = () => {
       if (response.status) {
         // Fetch cart to get updated cart data
         const updatedCartResponse = await getCart(cartId);
-        
+
         // Re-apply coupon if it was applied before
         if (couponCodeToReapply && updatedCartResponse?.data) {
           try {
@@ -300,7 +341,7 @@ const CartPage = () => {
             // The coupon might have been invalidated due to cart changes
           }
         }
-        
+
         // Fetch cart again to get final state with coupon applied
         await fetchCart();
         showSuccess("Quantity updated successfully");
@@ -344,7 +385,7 @@ const CartPage = () => {
       const cartId = cartData?.cart_id || '0';
 
       // Preserve coupon code before updating meter
-      const couponCodeToReapply = appliedCouponCode || 
+      const couponCodeToReapply = appliedCouponCode ||
         cartData?.coupon_details?.code ||
         cartData?.bill_details?.coupon_applied ||
         cartData?.bill_details?.coupon_code ||
@@ -375,7 +416,7 @@ const CartPage = () => {
       if (response.status) {
         // Fetch cart to get updated cart data
         const updatedCartResponse = await getCart(cartId);
-        
+
         // Re-apply coupon if it was applied before
         if (couponCodeToReapply && updatedCartResponse?.data) {
           try {
@@ -389,7 +430,7 @@ const CartPage = () => {
             // Don't show error to user as meter update was successful
           }
         }
-        
+
         // Fetch cart again to get final state with coupon applied
         await fetchCart();
         showSuccess("Meter updated successfully");
@@ -733,11 +774,11 @@ const CartPage = () => {
                         )}
 
                         {/* BOGO Info */}
-                        {cartItem.is_bogo_free && cartItem.free_quantity > 0 && (
+                        {/* {cartItem.is_bogo_free && cartItem.free_quantity > 0 && (
                           <p className="text-sm text-green-600 font-medium">
                             🎉 {cartItem.free_quantity} item(s) free (BOGO offer)
                           </p>
-                        )}
+                        )} */}
                       </div>
                     </div>
                   </div>
@@ -821,7 +862,7 @@ const CartPage = () => {
                     </span>
                   </div>
 
-                  {billDetails.delivery_available && billDetails.message && (
+                  {billDetails.delivery_available && billDetails.message && (!selectedPaymentMethod || !selectedPaymentMethod.toLowerCase().includes('pickup')) && (
                     <p className="text-xs text-gray-500 italic">
                       {billDetails.message}
                     </p>
@@ -837,28 +878,74 @@ const CartPage = () => {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => navigate('/checkout')}
-                  className="w-full bg-[#ec1b45] text-white py-3 rounded-lg hover:bg-[#d91b40] transition-colors font-semibold text-base"
-                >
-                  Proceed to Checkout
-                </button>
-
+                {/* Available Payment Methods - Radio Selection */}
                 {cartData?.payment_method && cartData.payment_method.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <p className="text-xs text-gray-500 mb-2">Available Payment Methods:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {cartData.payment_method.map((method, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
-                        >
-                          {method}
-                        </span>
-                      ))}
+                  <div className="mb-6 pt-4 border-t border-gray-200">
+                    <p className="text-sm font-semibold text-gray-900 mb-3">
+                      Select Payment Method <span className="text-red-500">*</span>
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {cartData.payment_method
+                        .filter(method => {
+                          const normalizedMethod = method.toUpperCase().replace(/\s+/g, ' ').trim();
+                          return normalizedMethod !== 'PICKUP IN STORE';
+                        }) // Exclude PICKUP IN STORE if it exists in the array
+                        .map((method, index) => (
+                          <label
+                            key={index}
+                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedPaymentMethod === method
+                              ? 'border-[#ec1b45] bg-red-50'
+                              : 'border-gray-200 hover:bg-gray-50'
+                              }`}
+                          >
+                            <input
+                              type="radio"
+                              name="paymentMethod"
+                              value={method}
+                              checked={selectedPaymentMethod === method}
+                              onChange={() => setSelectedPaymentMethod(method)}
+                              className="w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45]"
+                            />
+                            <span className="text-sm font-medium text-gray-700">
+                              {method}
+                            </span>
+                          </label>
+                        ))}
+                      {/* Add PICKUP IN STORE as a payment option */}
+                      <label
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedPaymentMethod === 'PICKUP IN STORE'
+                          ? 'border-[#ec1b45] bg-red-50'
+                          : 'border-gray-200 hover:bg-gray-50'
+                          }`}
+                      >
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="PICKUP IN STORE"
+                          checked={selectedPaymentMethod === 'PICKUP IN STORE'}
+                          onChange={() => setSelectedPaymentMethod('PICKUP IN STORE')}
+                          className="w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45]"
+                        />
+                        <div>
+                          <span className="text-sm font-medium text-gray-700">
+                            PICKUP IN STORE
+                          </span>
+                          {/* <p className="text-xs text-gray-500 mt-1">
+                            Collect your order from our store
+                          </p> */}
+                        </div>
+                      </label>
                     </div>
                   </div>
                 )}
+
+                <button
+                  onClick={handleCheckout}
+                  className="w-full bg-[#ec1b45] text-white py-3 rounded-lg hover:bg-[#d91b40] transition-colors font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!selectedPaymentMethod || (selectedPaymentMethod === 'PICKUP IN STORE' && !cartData?.cart_id)}
+                >
+                  {selectedPaymentMethod === 'PICKUP IN STORE' ? 'Place Pickup Order' : 'Proceed to Checkout'}
+                </button>
               </div>
             </div>
           </div>

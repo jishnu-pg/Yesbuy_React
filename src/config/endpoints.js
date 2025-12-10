@@ -196,9 +196,11 @@ export const endpoints = {
     cancelOrder: (lastOrderId) => `/manage-user-order/${lastOrderId}/`,
     listUserOrders: '/list-user-orders/',
     getOrderDetails: (orderId) => `/manage-user-order/${orderId}/`,
+    getUserOrderDetails: (lastOrderId) => `/user-order-details/${lastOrderId}/`,
     returnOrder: '/return-order/',
     exchangeOrder: '/exchange-order/',
     getReasons: '/reasons-with-subreasons/',
+    pickupFromStore: '/pickup-from-store/',
   },
 
   // Bank Account Endpoints

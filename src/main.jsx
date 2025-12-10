@@ -35,6 +35,7 @@ import ReturnRefundPage from "./Pages/ReturnRefundPage";
 import AddBankAccountPage from "./Pages/AddBankAccountPage";
 import ExchangeOrderPage from "./Pages/ExchangeOrderPage";
 import ExchangeOrderDetailsPage from "./Pages/ExchangeOrderDetailsPage";
+import PickupSuccessPage from "./Pages/PickupSuccessPage";
 import NotFoundPage from "./components/NotFoundPage";
 import HttpErrorPage from "./components/HttpErrorPage";
 
@@ -131,6 +132,10 @@ const router = createBrowserRouter([
       {
         path: "/privacy-policy",
         element: <PrivacyPolicyPage />,
+      },
+      {
+        path: "/pickup-success",
+        element: <PickupSuccessPage />,
       },
     ],
     errorElement: <HttpErrorPage />,
