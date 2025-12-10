@@ -162,6 +162,7 @@ export const endpoints = {
       const queryString = params.toString();
       return `/sort-filter-products-list${queryString ? `?${queryString}` : ''}`;
     },
+    getAllProducts: (page = 1) => `/list-all-products?page=${page}`,
   },
 
   // Cart Endpoints
