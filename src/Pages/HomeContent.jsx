@@ -3,6 +3,7 @@ import Trending from "../components/Trending";
 import DiscountCategories from "../components/DiscountCategories";
 import LimitedDiscountProducts from "../components/LimitedDiscountProducts";
 import CategoryShopping from "../components/CategoryShopping";
+import YBProducts from "../components/YBProducts";
 import TopBrands from "../components/TopBrands";
 
 const HomeContent = () => {
@@ -13,6 +14,7 @@ const HomeContent = () => {
       <LimitedDiscountProducts />
       <Trending />
       <CategoryShopping />
+      <YBProducts />
     </div>
   );
 };

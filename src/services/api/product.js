@@ -11,7 +11,7 @@ export const getProductsByCategoryId = async (categoryId) => {
   if (!categoryId) {
     throw new Error("Category ID is required");
   }
-  
+
   const response = await get(endpoints.product.getProductsByCategoryId(categoryId));
   return response;
 };
@@ -25,7 +25,7 @@ export const getProductsBySubcategoryId = async (subcategoryId) => {
   if (!subcategoryId) {
     throw new Error("Subcategory ID is required");
   }
-  
+
   const response = await get(endpoints.product.getProductsBySubcategoryId(subcategoryId));
   return response;
 };
@@ -49,7 +49,7 @@ export const getProductById = async (productId) => {
   if (!productId) {
     throw new Error("Product ID is required");
   }
-  
+
   const response = await get(endpoints.product.getProductById(productId));
   return response;
 };
@@ -74,7 +74,7 @@ export const getProductVariantsById = async (productId, variantId = null, size =
   if (!productId) {
     throw new Error("Product ID is required");
   }
-  
+
   const response = await get(endpoints.product.getProductVariantsById(productId, variantId, size));
   return response;
 };
@@ -112,6 +112,16 @@ export const getSortOptions = async () => {
  */
 export const sortFilterProductsList = async (filters = {}) => {
   const response = await get(endpoints.product.sortFilterProductsList(filters));
+  return response;
+};
+
+/**
+ * Get all products list from /list-all-products
+ * @param {number} page - Page number
+ * @returns {Promise<{count: number, next: string|null, previous: string|null, results: Array}>}
+ */
+export const getAllProductsList = async (page = 1) => {
+  const response = await get(endpoints.product.getAllProducts(page));
   return response;
 };
 
