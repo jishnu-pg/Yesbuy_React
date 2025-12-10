@@ -153,3 +153,26 @@ export const cancelOrder = async (lastOrderId) => {
   const response = await patch(endpoints.order.cancelOrder(lastOrderId)); // PATCH with no body
   return response;
 };
+
+/**
+ * Create pickup from store order
+ * @param {string} cartmaster_id - Cart UUID
+ * @returns {Promise<{message: string, order_id: number, last_order_id: string, cart_items: Array, total_amount: number, payment_status: string, pickup_address: string}>}
+ */
+export const pickupFromStore = async (cartmaster_id) => {
+  const formData = new FormData();
+  formData.append('cartmaster_id', cartmaster_id);
+  
+  const response = await post(endpoints.order.pickupFromStore, formData, true);
+  return response;
+};
+
+/**
+ * Get user order details by last order ID
+ * @param {string} lastOrderId - Last order ID
+ * @returns {Promise<{result: {address: Object, items: Array, total_amount: number}}}
+ */
+export const getUserOrderDetails = async (lastOrderId) => {
+  const response = await get(endpoints.order.getUserOrderDetails(lastOrderId));
+  return response;
+};

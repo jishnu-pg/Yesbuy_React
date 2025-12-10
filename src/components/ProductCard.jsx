@@ -13,16 +13,16 @@ import { showError, showSuccess } from "../utils/toast";
 
 const ProductCard = ({ product, size = 'normal' }) => {
   // Destructure with safe defaults - handle both old and new API formats
-  const { 
-    title, 
+  const {
+    title,
     name, // New API format
-    price, 
+    price,
     originalPrice: originalPriceProp,
-    discountPercentage: discount = 0, 
+    discountPercentage: discount = 0,
     is_bogo = false,
     discount_text = null,
     has_offer = false,
-    images = [], 
+    images = [],
     brand, // No default - show nothing if missing
     brand_name, // New API format
     main_image, // New API format
@@ -40,16 +40,16 @@ const ProductCard = ({ product, size = 'normal' }) => {
   const productTitle = name || title;
   // Only use brand_name or brand if they exist and are non-empty strings, don't fallback to category
   const productBrand = (brand_name && brand_name.trim()) || (brand && brand.trim()) || null;
-  const productImages = images.length > 0 
-    ? images 
+  const productImages = images.length > 0
+    ? images
     : (main_image ? [{ url: main_image }, ...additional_images.map(img => ({ url: typeof img === 'string' ? img : img.image || img }))] : []);
 
   // Get product ID - prioritize product_id for API compatibility
   const productId = product_id || product.product_id || product.id || variant_id || product.variant_id;
 
   // Calculate original price safely
-  const originalPrice = originalPriceProp || (discount > 0 
-    ? Math.round((price * 100) / (100 - discount)) 
+  const originalPrice = originalPriceProp || (discount > 0
+    ? Math.round((price * 100) / (100 - discount))
     : price);
 
   const dispatch = useDispatch();
@@ -61,7 +61,7 @@ const ProductCard = ({ product, size = 'normal' }) => {
   // Initialize from product prop
   const [isFavorite, setIsFavorite] = useState(isFavourite || is_favourite || false);
   const [isToggling, setIsToggling] = useState(false);
-  
+
   // Check if in wishlist - prioritize Redux, then local state
   // This gives us the most accurate current state
   const isInWishlist = reduxIsInWishlist || isFavorite;
@@ -72,7 +72,7 @@ const ProductCard = ({ product, size = 'normal' }) => {
   const handleWishlistToggle = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Check if user is authenticated
     const token = localStorage.getItem("accessToken");
     if (!token) {
@@ -84,16 +84,16 @@ const ProductCard = ({ product, size = 'normal' }) => {
 
     // Use isInWishlist to determine current state (combines Redux + local state)
     const wasFavorite = isInWishlist; // Store previous state for error handling
-    
+
     try {
       setIsToggling(true);
-      
+
       // Optimistically update UI
       setIsFavorite(!wasFavorite);
-      
+
       // Call API to toggle favorite
       await createToggleFavorite(productId);
-      
+
       // Update Redux state
       if (wasFavorite) {
         dispatch(removeFromWishlist(productId));
@@ -114,16 +114,16 @@ const ProductCard = ({ product, size = 'normal' }) => {
 
   // Check if product is trending (you can add this field to your API response)
   const isTrending = product.is_trending || product.trending || false;
-  
+
   // Get minimum meter from API response
   // Check both direct props and product object for minimum_meter
   // Show badge if minimum_meter exists in API response and is greater than 0
-  const minMeterValue = minimum_meter !== undefined && minimum_meter !== null 
-    ? minimum_meter 
-    : (product.minimum_meter !== undefined && product.minimum_meter !== null 
-      ? product.minimum_meter 
+  const minMeterValue = minimum_meter !== undefined && minimum_meter !== null
+    ? minimum_meter
+    : (product.minimum_meter !== undefined && product.minimum_meter !== null
+      ? product.minimum_meter
       : null);
-  
+
   // Parse to float and check if greater than 0
   // Handle string values like "5.00" from API
   const minMeter = minMeterValue !== null ? parseFloat(minMeterValue) : null;
@@ -148,9 +148,9 @@ const ProductCard = ({ product, size = 'normal' }) => {
   const imageAspect = 'aspect-square'; // Maintain 1:1 ratio as per spec (725×725)
 
   return (
-      <Link 
-        to={`/product/${productId}`}
-        className="relative flex flex-col bg-white rounded-lg overflow-hidden h-full"
+    <Link
+      to={`/product/${productId}`}
+      className="relative flex flex-col bg-white rounded-lg overflow-hidden h-full"
     >
       {/* Image Container - Product images: 725×725 (1:1 ratio) */}
       <div className={`relative w-full ${imageAspect} bg-gray-50 flex-shrink-0 overflow-hidden`}>
@@ -159,28 +159,27 @@ const ProductCard = ({ product, size = 'normal' }) => {
           alt={productTitle}
           className="w-full h-full object-contain"
         />
-        
+
         {/* Trending Label */}
         {isTrending && (
           <div className={`absolute top-1.5 left-1.5 bg-green-500 text-white ${trendingTextSize} font-semibold ${trendingPadding} rounded`}>
             Trending
           </div>
         )}
-        
+
         {/* Running Material Badge - Bottom Right - Only show if minimum_meter exists in API response and is greater than 0 */}
         {shouldShowBadge && (
           <div className={`absolute bottom-1.5 right-1.5 bg-[#ec1b45] text-white ${trendingTextSize} font-semibold ${trendingPadding} rounded z-10`}>
             {minMeter} Meters
           </div>
         )}
-        
+
         {/* Wishlist Button - Always visible in top right */}
         <button
           onClick={handleWishlistToggle}
           disabled={isToggling}
-          className={`absolute ${heartButtonPosition} ${heartButtonPadding} rounded-full bg-white/90 hover:bg-white transition-colors shadow-sm z-10 ${
-            isToggling ? 'opacity-50 cursor-wait' : ''
-          }`}
+          className={`absolute ${heartButtonPosition} ${heartButtonPadding} rounded-full bg-white/90 hover:bg-white transition-colors shadow-sm z-10 ${isToggling ? 'opacity-50 cursor-wait' : ''
+            }`}
           aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
         >
           {isInWishlist ? (
@@ -197,7 +196,7 @@ const ProductCard = ({ product, size = 'normal' }) => {
         <h3 className={`${brandTextSize} font-semibold text-gray-800 uppercase tracking-wide ${!productBrand ? 'invisible' : ''}`}>
           {productBrand || '\u00A0'}
         </h3>
-        
+
         {/* Product Description/Title */}
         <p className={`${titleTextSize} text-gray-700 line-clamp-2 ${titleMinHeight}`}>
           {productTitle}
@@ -210,7 +209,7 @@ const ProductCard = ({ product, size = 'normal' }) => {
           </span>
           {has_offer && (discount > 0 || is_bogo) && (originalPrice > price || is_bogo) && (
             <>
-        {discount > 0 && (
+              {discount > 0 && (
                 <span className={`${discountTextSize} text-gray-500 line-through ${isCompact ? 'whitespace-nowrap' : ''}`}>
                   ₹{originalPrice?.toLocaleString('en-IN')}
                 </span>
@@ -218,10 +217,10 @@ const ProductCard = ({ product, size = 'normal' }) => {
               <span className={`${discountTextSize} font-semibold text-red-500 ${isCompact ? 'whitespace-nowrap' : ''}`}>
                 {is_bogo && discount_text ? discount_text : `${discount}% OFF`}
               </span>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
     </Link>
   );
 };

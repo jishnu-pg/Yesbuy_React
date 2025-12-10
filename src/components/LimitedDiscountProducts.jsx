@@ -19,7 +19,7 @@ const LimitedDiscountProducts = () => {
     try {
       setIsLoading(true);
       const response = await getDiscountedProductsLimitedList();
-      
+
       if (response.results && response.results.length > 0) {
         // Map API response to ProductCard format
         const mappedProducts = response.results.map((product) => ({
@@ -28,8 +28,8 @@ const LimitedDiscountProducts = () => {
           variant_id: product.variant_id,
           title: product.name,
           name: product.name,
-          price: product.discount_price?.has_offer 
-            ? product.discount_price.discounted_price 
+          price: product.discount_price?.has_offer
+            ? product.discount_price.discounted_price
             : product.price,
           originalPrice: product.discount_price?.base_price || product.price,
           discountPercentage: product.discount_price?.percentage || 0,
@@ -38,8 +38,8 @@ const LimitedDiscountProducts = () => {
           has_offer: product.discount_price?.has_offer || false,
           images: [
             { url: product.main_image },
-            ...(product.additional_images || []).map(img => ({ 
-              url: typeof img === 'string' ? img : img.image || img 
+            ...(product.additional_images || []).map(img => ({
+              url: typeof img === 'string' ? img : img.image || img
             }))
           ],
           main_image: product.main_image,
@@ -57,7 +57,7 @@ const LimitedDiscountProducts = () => {
           size_type: product.size_type,
           minimum_meter: product.minimum_meter,
         }));
-        
+
         setData(mappedProducts);
       } else {
         setData([]);
@@ -95,14 +95,14 @@ const LimitedDiscountProducts = () => {
       </h1>
       <div className="mt-1 sm:mt-3">
         <Carousel
-        items={data}
-        itemsPerPage={ITEMS_PER_PAGE}
-        renderItem={(item) => (
-          <ProductCard 
-            key={item.id || item.product_id || item.variant_id}
-            product={item} 
-          />
-        )}
+          items={data}
+          itemsPerPage={ITEMS_PER_PAGE}
+          renderItem={(item) => (
+            <ProductCard
+              key={item.id || item.product_id || item.variant_id}
+              product={item}
+            />
+          )}
         />
       </div>
     </div>

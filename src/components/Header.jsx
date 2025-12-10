@@ -39,8 +39,10 @@ const Header = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const searchInputRef = useRef(null);
-  const searchDropdownRef = useRef(null);
+  const desktopSearchInputRef = useRef(null);
+  const mobileSearchInputRef = useRef(null);
+  const desktopSearchDropdownRef = useRef(null);
+  const mobileSearchDropdownRef = useRef(null);
   const debounceTimerRef = useRef(null);
 
   // Notification states
@@ -104,11 +106,16 @@ const Header = () => {
       }
 
       // Check if click is outside search dropdown and search input
-      // Use closest to check if the clicked element or its parent is inside the dropdown
-      const isInsideSearchDropdown = searchDropdownRef.current?.contains(clickedElement);
-      const isInsideSearchInput = searchInputRef.current?.contains(clickedElement);
+      // Check both desktop and mobile refs
+      const isInsideDesktopSearchDropdown = desktopSearchDropdownRef.current?.contains(clickedElement);
+      const isInsideMobileSearchDropdown = mobileSearchDropdownRef.current?.contains(clickedElement);
+      const isInsideDesktopSearchInput = desktopSearchInputRef.current?.contains(clickedElement);
+      const isInsideMobileSearchInput = mobileSearchInputRef.current?.contains(clickedElement);
 
-      if (showSearchDropdown && !isInsideSearchDropdown && !isInsideSearchInput) {
+      const isInsideSearch = isInsideDesktopSearchDropdown || isInsideMobileSearchDropdown ||
+        isInsideDesktopSearchInput || isInsideMobileSearchInput;
+
+      if (showSearchDropdown && !isInsideSearch) {
         setShowSearchDropdown(false);
       }
 
@@ -202,7 +209,8 @@ const Header = () => {
         case 'Escape':
           setShowSearchDropdown(false);
           setSearchQuery('');
-          searchInputRef.current?.blur();
+          desktopSearchInputRef.current?.blur();
+          mobileSearchInputRef.current?.blur();
           break;
       }
     };
@@ -233,7 +241,8 @@ const Header = () => {
     setSearchQuery('');
     setShowSearchDropdown(false);
     setSelectedIndex(-1);
-    searchInputRef.current?.blur();
+    desktopSearchInputRef.current?.blur();
+    mobileSearchInputRef.current?.blur();
   };
 
   const handleSearchFocus = () => {
@@ -294,7 +303,7 @@ const Header = () => {
               <CiSearch size={22} className="text-gray-400" />
             </div>
             <input
-              ref={searchInputRef}
+              ref={desktopSearchInputRef}
               type="text"
               value={searchQuery}
               onChange={handleSearchChange}
@@ -306,7 +315,7 @@ const Header = () => {
             {/* Search Suggestions Dropdown */}
             {showSearchDropdown && (
               <div
-                ref={searchDropdownRef}
+                ref={desktopSearchDropdownRef}
                 className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-96 overflow-y-auto z-50"
               >
                 {isSearching ? (
@@ -675,7 +684,7 @@ const Header = () => {
             <CiSearch size={22} className="text-gray-400" />
           </div>
           <input
-            ref={searchInputRef}
+            ref={mobileSearchInputRef}
             type="text"
             value={searchQuery}
             onChange={handleSearchChange}
@@ -687,7 +696,7 @@ const Header = () => {
           {/* Mobile Search Suggestions Dropdown */}
           {showSearchDropdown && (
             <div
-              ref={searchDropdownRef}
+              ref={mobileSearchDropdownRef}
               className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-96 overflow-y-auto z-50"
             >
               {isSearching ? (
