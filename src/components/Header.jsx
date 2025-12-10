@@ -86,7 +86,7 @@ const Header = () => {
       const isInsideDesktopDropdown = desktopDropdownRef.current?.contains(clickedElement);
       const isInsideMobileDropdown = mobileDropdownRef.current?.contains(clickedElement);
       const isInsideProfileDropdown = isInsideDesktopDropdown || isInsideMobileDropdown;
-      
+
       if (showProfileDropdown && !isInsideProfileDropdown) {
         console.log('[HEADER] Click outside profile dropdown detected');
         console.log('[HEADER] Clicked element:', clickedElement);
@@ -388,14 +388,13 @@ const Header = () => {
             }}
           >
             {(() => {
-              const isProfileActive = location.pathname === '/profile' || 
-                                     location.pathname === '/orders' || 
-                                     location.pathname === '/addresses' ||
-                                     location.pathname.startsWith('/order/');
+              const isProfileActive = location.pathname === '/profile' ||
+                location.pathname === '/orders' ||
+                location.pathname === '/addresses' ||
+                location.pathname.startsWith('/order/');
               return (
-                <button className={`flex flex-col items-center px-1 sm:px-2 transition-colors ${
-                  isProfileActive ? 'text-[#ec1b45]' : 'text-gray-700 hover:text-[#ec1b45]'
-                }`}>
+                <button className={`flex flex-col items-center px-1 sm:px-2 transition-colors ${isProfileActive ? 'text-[#ec1b45]' : 'text-gray-700 hover:text-[#ec1b45]'
+                  }`}>
                   <GoPerson size={20} />
                   <span className="text-xs mt-1">My Account</span>
                 </button>
@@ -404,7 +403,7 @@ const Header = () => {
 
             {/* Dropdown Menu */}
             {showProfileDropdown && (
-              <div 
+              <div
                 className="absolute right-0 mt-2 w-56 bg-white rounded-lg border border-gray-200 z-[100] animate-fade-in-down"
                 onMouseEnter={() => {
                   console.log('[HEADER] Desktop dropdown menu onMouseEnter triggered');
@@ -441,8 +440,8 @@ const Header = () => {
                         to={option.path}
                         onClick={() => setShowProfileDropdown(false)}
                         className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${isActive
-                            ? 'bg-[#ec1b45] text-white hover:bg-[#d91b40]'
-                            : 'text-gray-700 hover:bg-gray-50'
+                          ? 'bg-[#ec1b45] text-white hover:bg-[#d91b40]'
+                          : 'text-gray-700 hover:bg-gray-50'
                           }`}
                       >
                         <option.icon size={18} />
@@ -463,14 +462,14 @@ const Header = () => {
                         });
                         e.preventDefault();
                         e.stopPropagation();
-                        
+
                         // Clear any pending timeout to prevent dropdown from closing
                         if (profileDropdownTimeoutRef.current) {
                           console.log('[HEADER] Clearing pending timeout before logout');
                           clearTimeout(profileDropdownTimeoutRef.current);
                           profileDropdownTimeoutRef.current = null;
                         }
-                        
+
                         console.log('[HEADER] Calling logout function');
                         logout();
                         console.log('[HEADER] Closing dropdown');
@@ -505,18 +504,18 @@ const Header = () => {
             ref={mobileDropdownRef}
           >
             {(() => {
-              const isProfileActive = location.pathname === '/profile' || 
-                                     location.pathname === '/orders' || 
-                                     location.pathname === '/addresses' ||
-                                     location.pathname.startsWith('/order/');
+              const isProfileActive = location.pathname === '/profile' ||
+                location.pathname === '/orders' ||
+                location.pathname === '/addresses' ||
+                location.pathname.startsWith('/order/');
               return (
                 <button
                   onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                   className="flex flex-col items-center"
                   aria-label="My Account"
                 >
-                  <IconBtn 
-                    icon={<GoPerson />} 
+                  <IconBtn
+                    icon={<GoPerson />}
                     label="Profile"
                     className={isProfileActive ? 'text-[#ec1b45]' : 'text-gray-700 hover:text-[#ec1b45]'}
                   />
@@ -543,8 +542,8 @@ const Header = () => {
                         to={option.path}
                         onClick={() => setShowProfileDropdown(false)}
                         className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${isActive
-                            ? 'bg-[#ec1b45] text-white hover:bg-[#d91b40]'
-                            : 'text-gray-700 hover:bg-gray-50'
+                          ? 'bg-[#ec1b45] text-white hover:bg-[#d91b40]'
+                          : 'text-gray-700 hover:bg-gray-50'
                           }`}
                       >
                         <option.icon size={18} />
@@ -580,9 +579,9 @@ const Header = () => {
               className="flex flex-col items-center relative"
               aria-label="Notifications"
             >
-              <IconBtn 
-                icon={<IoMdNotificationsOutline />} 
-                label="Notifications" 
+              <IconBtn
+                icon={<IoMdNotificationsOutline />}
+                label="Notifications"
                 badge={unreadCount > 0 ? unreadCount : null}
                 className={showNotificationDropdown ? 'text-[#ec1b45]' : 'text-gray-700 hover:text-[#ec1b45]'}
               />
@@ -645,24 +644,24 @@ const Header = () => {
               </div>
             )}
           </div>
-          <Link 
+          <Link
             to="/favorite"
             className="flex flex-col items-center"
           >
-            <IconBtn 
-              icon={<CiHeart />} 
-              label="Favorites" 
+            <IconBtn
+              icon={<CiHeart />}
+              label="Favorites"
               badge={wishlistCount}
               className={location.pathname === '/favorite' ? 'text-[#ec1b45]' : 'text-gray-700 hover:text-[#ec1b45]'}
             />
           </Link>
-          <Link 
+          <Link
             to="/cartPage"
             className="flex flex-col items-center"
           >
-            <IconBtn 
-              icon={<BsHandbag />} 
-              label="Cart" 
+            <IconBtn
+              icon={<BsHandbag />}
+              label="Cart"
               badge={cartCount}
               className={location.pathname === '/cartPage' || location.pathname === '/cartpage' ? 'text-[#ec1b45]' : 'text-gray-700 hover:text-[#ec1b45]'}
             />
