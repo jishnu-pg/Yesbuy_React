@@ -18,7 +18,8 @@ export const config = {
   // API Configuration
   api: {
     // Base URL for API requests
-    baseUrl: getEnv('VITE_API_BASE_URL', 'http://127.0.0.1:8050/api'),
+    baseUrl: getEnv('VITE_API_BASE_URL', 'https://yesbharathonline.com/api'),
+    // https://yesbharathonline.com/api
     // Timeout for API requests (in milliseconds)
     timeout: parseInt(getEnv('VITE_API_TIMEOUT', '30000'), 10),
   },

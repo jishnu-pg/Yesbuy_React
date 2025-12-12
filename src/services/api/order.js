@@ -162,7 +162,7 @@ export const cancelOrder = async (lastOrderId) => {
 export const pickupFromStore = async (cartmaster_id) => {
   const formData = new FormData();
   formData.append('cartmaster_id', cartmaster_id);
-  
+
   const response = await post(endpoints.order.pickupFromStore, formData, true);
   return response;
 };
@@ -174,5 +174,30 @@ export const pickupFromStore = async (cartmaster_id) => {
  */
 export const getUserOrderDetails = async (lastOrderId) => {
   const response = await get(endpoints.order.getUserOrderDetails(lastOrderId));
+  return response;
+};
+
+/**
+ * Complete payment (Online/COD)
+ * @param {Object} paymentData
+ * @param {string} paymentData.cart_id
+ * @param {string} paymentData.date
+ * @param {string} paymentData.payment_method
+ * @param {number} paymentData.user_address_id
+ * @param {string} [paymentData.delivery_method]
+ * @returns {Promise<{message: string, data: Object}>}
+ */
+export const completePayment = async (paymentData) => {
+  const formData = new FormData();
+  formData.append('cart_id', paymentData.cart_id);
+  formData.append('date', paymentData.date);
+  formData.append('payment_method', paymentData.payment_method);
+  formData.append('user_address_id', paymentData.user_address_id);
+
+  if (paymentData.delivery_method) {
+    formData.append('delivery_method', paymentData.delivery_method);
+  }
+
+  const response = await post(endpoints.order.completePayment, formData, true);
   return response;
 };
