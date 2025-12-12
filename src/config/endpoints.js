@@ -202,6 +202,7 @@ export const endpoints = {
     getReasons: '/reasons-with-subreasons/',
     pickupFromStore: '/pickup-from-store/',
     completePayment: '/complete-payment/',
+    updateTransactionStatus: '/update-transaction-status/',
   },
 
   // Bank Account Endpoints

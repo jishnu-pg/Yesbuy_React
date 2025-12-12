@@ -4,10 +4,11 @@ import { FaTrash, FaShoppingBag, FaTimes, FaExclamationTriangle, FaTag, FaCheckC
 import { IoLocationOutline } from "react-icons/io5";
 import { getCart, deleteCartItem, addToCart } from "../services/api/cart";
 import { removeCoupon, applyCoupon } from "../services/api/coupon";
-import { pickupFromStore, completePayment } from "../services/api/order";
+import { pickupFromStore, completePayment, updateTransactionStatus } from "../services/api/order";
 import { listAddresses, setDefaultAddress as apiSetDefaultAddress, addAddress } from "../services/api/address";
 import { showError, showSuccess } from "../utils/toast";
 import LoaderSpinner from "../components/LoaderSpinner";
+import { initializeEasebuzzPayment, isPaymentSuccess, getTransactionId } from "../utils/easebuzz";
 
 const CartPage = () => {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ const CartPage = () => {
   const [updatingItemId, setUpdatingItemId] = useState(null);
   const [openSizeDropdown, setOpenSizeDropdown] = useState(null); // Track which item's dropdown is open
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Address states
   const [userAddresses, setUserAddresses] = useState([]);
@@ -128,8 +130,150 @@ const CartPage = () => {
         console.error("COD Order failed:", error);
         showError(error?.message || "Failed to place order. Please try again.");
       }
+    } else if (selectedPaymentMethod === 'BANK') {
+      // Handle BANK payment with Easebuzz
+      if (!defaultAddress) {
+        showError("Please select a delivery address to proceed");
+        return;
+      }
+
+      try {
+        setIsProcessingPayment(true);
+        const cartId = cartData?.cart_id;
+        if (!cartId) {
+          showError("Cart not found");
+          setIsProcessingPayment(false);
+          return;
+        }
+
+        // Check for out of stock items
+        const outOfStockItems = cartData?.cart_items?.filter(item => !item.is_in_stock);
+        if (outOfStockItems && outOfStockItems.length > 0) {
+          showError("Cart has items which are out of stock. Please remove them and try again.");
+          setIsProcessingPayment(false);
+          return;
+        }
+
+        const deliveryDate = new Date().toISOString().split('T')[0];
+
+        // Call complete-payment API to get Easebuzz credentials
+        const response = await completePayment({
+          cart_id: cartId,
+          date: deliveryDate,
+          payment_method: 'BANK',
+          user_address_id: defaultAddress.id
+        });
+
+        if (!response.data) {
+          showError(response.message || "Failed to initiate payment");
+          setIsProcessingPayment(false);
+          return;
+        }
+
+        const paymentData = response.data;
+
+        // Log payment data for debugging (remove sensitive data in production)
+        console.log('Complete Payment Response:', {
+          ...paymentData,
+          access_key: paymentData.access_key ? '***' : undefined,
+          hash: paymentData.hash ? '***' : undefined,
+        });
+
+        // Validate required Easebuzz credentials
+        if (!paymentData.access_key || !paymentData.env || !paymentData.order_id) {
+          console.error('Missing required payment data:', {
+            hasAccessKey: !!paymentData.access_key,
+            hasEnv: !!paymentData.env,
+            hasOrderId: !!paymentData.order_id,
+            paymentData: paymentData,
+          });
+          showError("Payment gateway configuration error. Please try again.");
+          setIsProcessingPayment(false);
+          return;
+        }
+
+        // Store cart data for callback page (in case form submission is used)
+        sessionStorage.setItem('easebuzz_cart_data', JSON.stringify(cartData));
+
+        // Initialize Easebuzz payment
+        // Easebuzz uses SDK-based integration (popup/modal)
+        // The SDK will handle the payment flow and call the callbacks
+        initializeEasebuzzPayment(
+          {
+            access_key: paymentData.access_key,
+            env: paymentData.env,
+            amount: paymentData.amount,
+            currency: paymentData.currency || 'INR',
+            customer_name: paymentData.customer_name,
+            customer_email: paymentData.customer_email || '',
+            mobile: paymentData.mobile,
+            order_id: paymentData.order_id,
+            hash: paymentData.hash, // Add hash if backend provides it
+            productinfo: paymentData.productinfo, // Add productinfo if backend provides it
+            surl: paymentData.surl, // Success URL if backend provides it
+            furl: paymentData.furl, // Failure URL if backend provides it
+            sdk_url: paymentData.sdk_url, // SDK URL if backend provides it
+            payment_url: paymentData.payment_url, // Payment URL if backend provides it
+          },
+          // Success callback (only called if SDK approach is used)
+          async (paymentResponse) => {
+            try {
+              setIsProcessingPayment(false);
+              sessionStorage.removeItem('easebuzz_cart_data');
+
+              // Check if payment was successful
+              if (isPaymentSuccess(paymentResponse)) {
+                const transactionId = getTransactionId(paymentResponse);
+
+                // Update transaction status (fire-and-forget, don't wait for response)
+                if (transactionId) {
+                  updateTransactionStatus(transactionId).catch((error) => {
+                    console.error("Failed to update transaction status:", error);
+                    // Don't show error to user, payment was successful
+                  });
+                }
+
+                // Clear cart data
+                const cartIdToClear = cartData?.cart_id || '';
+                if (cartIdToClear) {
+                  localStorage.setItem('cartId', '');
+                }
+
+                // Navigate to order success page
+                navigate('/order-success', {
+                  state: {
+                    orderData: {
+                      order_id: paymentData.order_id,
+                      last_order_id: paymentData.order_id,
+                      amount: paymentData.amount,
+                    },
+                    cartData: cartData
+                  }
+                });
+              } else {
+                // Payment failed
+                showError("Order Failed! We were unable to process your order due to a payment issue. Please check your payment method and try again.");
+              }
+            } catch (error) {
+              console.error("Error handling payment response:", error);
+              showError("Error processing payment. Please contact support.");
+            }
+          },
+          // Failure callback (only called if SDK approach is used)
+          (error) => {
+            setIsProcessingPayment(false);
+            sessionStorage.removeItem('easebuzz_cart_data');
+            console.error("Easebuzz payment error:", error);
+            showError("Order Failed! We were unable to process your order due to a payment issue. Please check your payment method and try again.");
+          }
+        );
+      } catch (error) {
+        setIsProcessingPayment(false);
+        console.error("Bank payment initiation failed:", error);
+        showError(error?.message || "Failed to initiate payment. Please try again.");
+      }
     } else {
-      // Regular checkout flow
+      // Regular checkout flow for other payment methods
       if (!selectedPaymentMethod) {
         showError("Please select a payment method to proceed");
         return;
@@ -150,6 +294,14 @@ const CartPage = () => {
   useEffect(() => {
     fetchCart();
     fetchUserAddresses();
+    
+    // Check if we need to refresh cart after returning from payment
+    const shouldRefresh = sessionStorage.getItem('refresh_cart_on_return');
+    if (shouldRefresh === 'true') {
+      sessionStorage.removeItem('refresh_cart_on_return');
+      // Refresh cart to ensure it's up to date
+      fetchCart();
+    }
   }, []);
 
   const fetchUserAddresses = async () => {
@@ -1124,9 +1276,13 @@ const CartPage = () => {
                   <button
                     onClick={handleCheckout}
                     className="w-full bg-[#ec1b45] text-white py-3 rounded-lg hover:bg-[#d91b40] transition-colors font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={!selectedPaymentMethod || (selectedPaymentMethod === 'PICKUP IN STORE' && !cartData?.cart_id)}
+                    disabled={!selectedPaymentMethod || (selectedPaymentMethod === 'PICKUP IN STORE' && !cartData?.cart_id) || isProcessingPayment}
                   >
-                    {selectedPaymentMethod === 'PICKUP IN STORE' || selectedPaymentMethod === 'COD' ? 'Place Order' : 'Proceed to Checkout'}
+                    {isProcessingPayment 
+                      ? 'Processing...' 
+                      : selectedPaymentMethod === 'PICKUP IN STORE' || selectedPaymentMethod === 'COD' || selectedPaymentMethod === 'BANK'
+                        ? 'Place Order' 
+                        : 'Proceed to Checkout'}
                   </button>
                 </div>
               </div>

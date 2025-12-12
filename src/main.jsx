@@ -37,6 +37,7 @@ import ExchangeOrderPage from "./Pages/ExchangeOrderPage";
 import ExchangeOrderDetailsPage from "./Pages/ExchangeOrderDetailsPage";
 import PickupSuccessPage from "./Pages/PickupSuccessPage";
 import OrderSuccessPage from "./Pages/OrderSuccessPage";
+import PaymentCallbackPage from "./Pages/PaymentCallbackPage";
 import NotFoundPage from "./components/NotFoundPage";
 import HttpErrorPage from "./components/HttpErrorPage";
 
@@ -141,6 +142,10 @@ const router = createBrowserRouter([
       {
         path: "/order-success",
         element: <OrderSuccessPage />,
+      },
+      {
+        path: "/payment-callback",
+        element: <PaymentCallbackPage />,
       },
     ],
     errorElement: <HttpErrorPage />,

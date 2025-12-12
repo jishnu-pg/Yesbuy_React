@@ -201,3 +201,16 @@ export const completePayment = async (paymentData) => {
   const response = await post(endpoints.order.completePayment, formData, true);
   return response;
 };
+
+/**
+ * Update transaction status after payment
+ * @param {string} transactionId - Transaction ID from payment gateway
+ * @returns {Promise<{message: string, data: Object}>}
+ */
+export const updateTransactionStatus = async (transactionId) => {
+  const formData = new FormData();
+  formData.append('transaction_id', transactionId);
+
+  const response = await post(endpoints.order.updateTransactionStatus, formData, true);
+  return response;
+};
