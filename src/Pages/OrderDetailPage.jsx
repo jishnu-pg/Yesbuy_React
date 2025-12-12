@@ -329,7 +329,7 @@ const OrderDetailPage = () => {
                       <span className="font-medium">Payment Method:</span> {orderDetail.payment_method}
                     </p>
                   )}
-                  
+
                   {/* Coupon Information */}
                   {orderDetail.coupon_name && (
                     <div className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border border-green-300 shadow-sm w-fit">

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { 
-  listAddresses, 
-  addAddress, 
-  updateAddress, 
-  deleteAddress, 
-  setDefaultAddress 
+import {
+  listAddresses,
+  addAddress,
+  updateAddress,
+  deleteAddress,
+  setDefaultAddress
 } from "../services/api/address";
 import { showError, showSuccess } from "../utils/toast";
 import LoaderSpinner from "./LoaderSpinner";
@@ -108,7 +108,7 @@ const AddressManagement = () => {
         await addAddress(formDataToSend);
         showSuccess("Address added successfully!");
       }
-      
+
       resetForm();
       fetchAddresses();
     } catch (error) {
@@ -232,142 +232,142 @@ const AddressManagement = () => {
 
             <form onSubmit={handleSubmit} className="p-4 sm:p-6">
               <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone Number *
-                </label>
-                <input
-                  type="tel"
-                  name="phone_number"
-                  value={formData.phone_number}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
-                  placeholder="Enter phone number"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone_number"
+                    value={formData.phone_number}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
+                    placeholder="Enter phone number"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Landmark *
-                </label>
-                <input
-                  type="text"
-                  name="landmark"
-                  value={formData.landmark}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
-                  placeholder="Enter landmark"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Landmark *
+                  </label>
+                  <input
+                    type="text"
+                    name="landmark"
+                    value={formData.landmark}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
+                    placeholder="Enter landmark"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Location Address *
-                </label>
-                <input
-                  type="text"
-                  name="location_address"
-                  value={formData.location_address}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
-                  placeholder="Enter location address"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Location Address *
+                  </label>
+                  <input
+                    type="text"
+                    name="location_address"
+                    value={formData.location_address}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
+                    placeholder="Enter location address"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Address *
-                </label>
-                <input
-                  type="text"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
-                  placeholder="Enter address"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Address *
+                  </label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
+                    placeholder="Enter address"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  City *
-                </label>
-                <input
-                  type="text"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
-                  placeholder="Enter city"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    City *
+                  </label>
+                  <input
+                    type="text"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
+                    placeholder="Enter city"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  State *
-                </label>
-                <input
-                  type="text"
-                  name="state"
-                  value={formData.state}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
-                  placeholder="Enter state"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    State *
+                  </label>
+                  <input
+                    type="text"
+                    name="state"
+                    value={formData.state}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
+                    placeholder="Enter state"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Pincode *
-                </label>
-                <input
-                  type="text"
-                  name="pincode"
-                  value={formData.pincode}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
-                  placeholder="Enter pincode"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Pincode *
+                  </label>
+                  <input
+                    type="text"
+                    name="pincode"
+                    value={formData.pincode}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
+                    placeholder="Enter pincode"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Country *
-                </label>
-                <input
-                  type="text"
-                  name="country"
-                  value={formData.country}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
-                  placeholder="Enter country"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Country *
+                  </label>
+                  <input
+                    type="text"
+                    name="country"
+                    value={formData.country}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
+                    placeholder="Enter country"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tag *
-                </label>
-                <select
-                  name="tag"
-                  value={formData.tag}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base bg-white"
-                >
-                  <option value="others">Others</option>
-                  <option value="home">Home</option>
-                  <option value="office">Office</option>
-                </select>
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tag *
+                  </label>
+                  <select
+                    name="tag"
+                    value={formData.tag}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base bg-white"
+                  >
+                    <option value="others">Others</option>
+                    <option value="home">Home</option>
+                    <option value="office">Office</option>
+                  </select>
+                </div>
               </div>
 
               <div className="flex items-center gap-3 pt-4">
@@ -426,11 +426,10 @@ const AddressManagement = () => {
               {addresses.map((address) => (
                 <div
                   key={address.id}
-                  className={`border-2 rounded-lg p-4 transition-all hover:border-[#ec1b45] bg-white ${
-                    address.is_default 
-                      ? 'border-[#ec1b45] bg-red-50' 
+                  className={`border-2 rounded-lg p-4 transition-all hover:border-[#ec1b45] bg-white ${address.is_default
+                      ? 'border-[#ec1b45] bg-red-50'
                       : 'border-gray-200 hover:shadow-md'
-                  }`}
+                    }`}
                 >
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-2 flex-wrap">

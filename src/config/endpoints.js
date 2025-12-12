@@ -201,6 +201,7 @@ export const endpoints = {
     exchangeOrder: '/exchange-order/',
     getReasons: '/reasons-with-subreasons/',
     pickupFromStore: '/pickup-from-store/',
+    completePayment: '/complete-payment/',
   },
 
   // Bank Account Endpoints
