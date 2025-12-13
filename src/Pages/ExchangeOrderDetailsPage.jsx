@@ -16,6 +16,8 @@ const ExchangeOrderDetailsPage = () => {
   const [additionalComment, setAdditionalComment] = useState(location.state?.additionalComment || "");
   const [selectedSize, setSelectedSize] = useState(location.state?.selectedSize || null);
   const [productVariants, setProductVariants] = useState(location.state?.productVariants || null);
+  const [exchangeMethod, setExchangeMethod] = useState(location.state?.exchangeMethod || "Exchange Online");
+  const [showDirectStorePopup, setShowDirectStorePopup] = useState(false);
   const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,11 +72,13 @@ const ExchangeOrderDetailsPage = () => {
   };
 
   const formatAddress = (address) => {
+    // Match Flutter format: address, landmark, city, state, country, pincode
     const parts = [
-      address.location_address,
       address.address,
+      address.landmark,
       address.city,
       address.state,
+      address.country,
       address.pincode,
     ].filter(Boolean);
     return parts.join(', ');
@@ -94,8 +98,17 @@ const ExchangeOrderDetailsPage = () => {
   };
 
   const handleProcessExchange = async () => {
-    if (!selectedAddressId) {
+    const isDirectStoreExchange = exchangeMethod === "Exchange Direct From Store";
+    
+    // Address is only required for "Exchange Online"
+    if (!isDirectStoreExchange && !selectedAddressId) {
       showError("Please select an exchange address");
+      return;
+    }
+
+    // Validate additional comment is not empty (required in Flutter)
+    if (!additionalComment || additionalComment.trim() === "") {
+      showError("Please enter a comment before continuing");
       return;
     }
 
@@ -104,20 +117,31 @@ const ExchangeOrderDetailsPage = () => {
       return;
     }
 
+    // For "Exchange Direct From Store", show confirmation popup
+    if (isDirectStoreExchange) {
+      setShowDirectStorePopup(true);
+      return;
+    }
+
+    await processExchangeAPI();
+  };
+
+  const processExchangeAPI = async () => {
     try {
       setIsSubmitting(true);
       
       const order = orderDetail?.order || {};
       const sizeType = productVariants?.product?.size_type || 'clothing_size';
+      const isDirectStoreExchange = exchangeMethod === "Exchange Direct From Store";
       
       const exchangeData = {
         previous_order_id: order.id || orderId,
         product_id: order.product_id,
         product_variant_id: selectedSize.variantId,
         size_type: sizeType,
-        exchange_type: 'DELIVERY',
+        exchange_type: isDirectStoreExchange ? 'IN_STORE' : 'DELIVERY',
         reason: exchangeReason,
-        sub_reason: additionalComment,
+        sub_reason: additionalComment.trim(), // Required field, always send
       };
 
       // Add size-specific fields
@@ -137,6 +161,7 @@ const ExchangeOrderDetailsPage = () => {
       await exchangeOrder(exchangeData);
       
       setShowSuccessPopup(true);
+      setShowDirectStorePopup(false);
     } catch (error) {
       console.error("Failed to process exchange:", error);
       showError(error.message || "Failed to process exchange. Please try again.");
@@ -176,6 +201,7 @@ const ExchangeOrderDetailsPage = () => {
 
   const order = orderDetail.order || {};
   const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
+  const isDirectStoreExchange = exchangeMethod === "Exchange Direct From Store";
 
   return (
     <div className="min-h-screen bg-white">
@@ -295,7 +321,8 @@ const ExchangeOrderDetailsPage = () => {
           </div>
         </div>
 
-        {/* Exchange Address */}
+        {/* Exchange Address - Only for "Exchange Online" */}
+        {!isDirectStoreExchange && (
         <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Exchange Address</h2>
@@ -310,14 +337,19 @@ const ExchangeOrderDetailsPage = () => {
             <div className="flex items-start gap-3">
               <IoLocationOutline size={20} className="text-gray-400 mt-1 flex-shrink-0" />
               <div className="flex-1">
-                <p className="font-medium text-gray-900 mb-1">{selectedAddress.phone_number || 'N/A'}</p>
-                <p className="text-sm text-gray-600">{formatAddress(selectedAddress)}</p>
+                {/* Match Flutter format: location_address (Name) as bold header */}
+                {selectedAddress.location_address && (
+                  <p className="font-bold text-gray-900 mb-1">{selectedAddress.location_address}</p>
+                )}
+                <p className="text-sm text-gray-600 mb-1">{formatAddress(selectedAddress)}</p>
+                <p className="text-xs text-gray-500">{selectedAddress.phone_number || 'N/A'}</p>
               </div>
             </div>
           ) : (
             <p className="text-sm text-gray-600">No address selected</p>
           )}
         </div>
+        )}
 
         {/* Delivery Estimate */}
         {/* <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
@@ -334,7 +366,7 @@ const ExchangeOrderDetailsPage = () => {
         <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 -mx-4 sm:mx-0 sm:rounded-lg sm:border sm:mt-6">
           <button
             onClick={handleProcessExchange}
-            disabled={isSubmitting || !selectedAddressId || !selectedSize}
+            disabled={isSubmitting || (!isDirectStoreExchange && !selectedAddressId) || !selectedSize}
             className="w-full bg-[#ec1b45] text-white py-3 px-6 rounded-md hover:bg-[#d91b40] transition-colors font-semibold text-base disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
             {isSubmitting ? "Processing..." : "Process Exchange"}
@@ -344,8 +376,8 @@ const ExchangeOrderDetailsPage = () => {
 
       {/* Address Change Popup */}
       {showAddressPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-t-lg sm:rounded-lg w-full max-w-md max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 pointer-events-none">
+          <div className="bg-white rounded-t-lg sm:rounded-lg w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl border border-gray-200 pointer-events-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Change Address</h3>
               <button
@@ -374,10 +406,14 @@ const ExchangeOrderDetailsPage = () => {
                   />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-900 mb-1">
-                      {address.tag || 'Address'}
+                      {address.tag || 'Home'}
                     </p>
-                    <p className="text-sm text-gray-600 mb-1">{address.phone_number || 'N/A'}</p>
-                    <p className="text-xs text-gray-500">{formatAddress(address)}</p>
+                    {/* Match Flutter format: location_address (Name) as bold */}
+                    {address.location_address && (
+                      <p className="text-sm font-bold text-gray-900 mb-1">{address.location_address}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mb-1">{formatAddress(address)}</p>
+                    <p className="text-xs text-gray-500">{address.phone_number || 'N/A'}</p>
                   </div>
                 </label>
               ))}
@@ -398,7 +434,7 @@ const ExchangeOrderDetailsPage = () => {
       {/* Success Popup */}
       {showSuccessPopup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-8 max-w-sm w-full text-center">
+          <div className="bg-white rounded-lg p-8 max-w-sm w-full text-center shadow-2xl border border-gray-200 pointer-events-auto">
             <div className="flex justify-center mb-4">
               <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
                 <FaCheckCircle size={40} className="text-green-500" />

@@ -105,10 +105,12 @@ const handleResponse = async (response) => {
   }
 
   // Check if response has status field and it indicates an error (even if response.ok is true)
-  if (data.status === false || data.success === false) {
+  // Handle both boolean false and numeric error status codes (400, 401, 403, 404, 500, etc.)
+  if (data.status === false || data.success === false || (typeof data.status === 'number' && data.status >= 400)) {
     const errorMessage = extractErrorMessage(data) || data.message || 'Request failed';
     const error = new Error(errorMessage);
     error.response = data; // Attach response data to error for component handling
+    error.status = typeof data.status === 'number' ? data.status : response.status;
     throw error;
   }
 

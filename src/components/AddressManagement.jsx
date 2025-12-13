@@ -10,6 +10,7 @@ import { showError, showSuccess } from "../utils/toast";
 import LoaderSpinner from "./LoaderSpinner";
 import { FaEdit, FaTrash, FaCheck, FaPlus, FaTimes } from "react-icons/fa";
 import { IoLocationOutline } from "react-icons/io5";
+import { MdLocationOn } from "react-icons/md";
 
 const AddressManagement = () => {
   const [addresses, setAddresses] = useState([]);
@@ -18,6 +19,7 @@ const AddressManagement = () => {
   const [editingAddress, setEditingAddress] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [addressToDelete, setAddressToDelete] = useState(null);
+  const [isLocationLoading, setIsLocationLoading] = useState(false);
   const [formData, setFormData] = useState({
     phone_number: '',
     landmark: '',
@@ -26,8 +28,8 @@ const AddressManagement = () => {
     city: '',
     state: '',
     pincode: '',
-    country: 'India',
-    tag: 'others',
+    country: '', // Empty string to match Flutter
+    tag: 'Home', // Default to 'Home' to match Flutter
     latitude: '1',
     longitude: '1',
     is_default: false,
@@ -69,6 +71,145 @@ const AddressManagement = () => {
     }));
   };
 
+  // Reverse geocode coordinates to get address details (matches Flutter logic)
+  const reverseGeocode = async (latitude, longitude) => {
+    try {
+      // Using OpenStreetMap Nominatim API (free, no API key required)
+      // This matches Flutter's geocoding approach
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'YesBuy-React-App' // Required by Nominatim
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Reverse geocoding failed');
+      }
+
+      const data = await response.json();
+      const address = data.address || {};
+
+      // Map OpenStreetMap address format to match Flutter's placemark structure
+      return {
+        street: address.road || address.street || '',
+        thoroughfare: address.road || address.street || '',
+        locality: address.city || address.town || address.village || address.suburb || '',
+        subLocality: address.suburb || address.neighbourhood || '',
+        subAdministrativeArea: address.county || '',
+        administrativeArea: address.state || address.region || '',
+        postalCode: address.postcode || '',
+        country: address.country || '',
+        name: address.name || '',
+      };
+    } catch (error) {
+      console.error('Reverse geocoding error:', error);
+      return null;
+    }
+  };
+
+  // Get current location and prefill form (matches Flutter's useCurrentLocation)
+  const handleUseCurrentLocation = async () => {
+    if (!navigator.geolocation) {
+      showError("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    try {
+      setIsLocationLoading(true);
+
+      // Get current position (matches Flutter's getCurrentPosition)
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+        );
+      });
+
+      const { latitude, longitude } = position.coords;
+
+      // Reverse geocode to get address (matches Flutter's getAddressFromPosition)
+      const addressData = await reverseGeocode(latitude, longitude);
+
+      if (!addressData) {
+        showError("Failed to get address from location. Please enter manually.");
+        setIsLocationLoading(false);
+        return;
+      }
+
+      // Prefill form fields (matches Flutter's logic in useCurrentLocation)
+      setFormData(prev => {
+        const newData = { ...prev };
+
+        // Fill location_address (Name) - use name or thoroughfare
+        if (addressData.name && addressData.name.trim()) {
+          newData.location_address = addressData.name;
+        } else if (addressData.thoroughfare && addressData.thoroughfare.trim()) {
+          newData.location_address = addressData.thoroughfare;
+        }
+
+        // Fill address (Flat No. Street Details) - use thoroughfare or street
+        if (addressData.thoroughfare && addressData.thoroughfare.trim()) {
+          newData.address = addressData.thoroughfare;
+        } else if (addressData.street && addressData.street.trim()) {
+          newData.address = addressData.street;
+        }
+
+        // Fill landmark - use subLocality or locality (matches Flutter)
+        if (addressData.subLocality && addressData.subLocality.trim()) {
+          newData.landmark = addressData.subLocality;
+        } else if (addressData.locality && addressData.locality.trim()) {
+          newData.landmark = addressData.locality;
+        }
+
+        // Fill state (administrativeArea)
+        if (addressData.administrativeArea && addressData.administrativeArea.trim()) {
+          newData.state = addressData.administrativeArea;
+        }
+
+        // Fill city (district) - use locality or subAdministrativeArea (matches Flutter)
+        if (addressData.locality && addressData.locality.trim()) {
+          newData.city = addressData.locality;
+        } else if (addressData.subAdministrativeArea && addressData.subAdministrativeArea.trim()) {
+          newData.city = addressData.subAdministrativeArea;
+        }
+
+        // Fill pincode
+        if (addressData.postalCode && addressData.postalCode.trim()) {
+          newData.pincode = addressData.postalCode;
+        }
+
+        // Update latitude and longitude
+        newData.latitude = latitude.toString();
+        newData.longitude = longitude.toString();
+
+        return newData;
+      });
+
+      showSuccess("Location details filled successfully!");
+    } catch (error) {
+      console.error('Location error:', error);
+      if (error.code === 1) {
+        showError("Location permission denied. Please enable location access in your browser settings.");
+      } else if (error.code === 2) {
+        showError("Location unavailable. Please check your GPS settings.");
+      } else if (error.code === 3) {
+        showError("Location request timed out. Please try again.");
+      } else {
+        showError("Failed to get current location. Please try again or enter manually.");
+      }
+    } finally {
+      setIsLocationLoading(false);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       phone_number: '',
@@ -78,8 +219,8 @@ const AddressManagement = () => {
       city: '',
       state: '',
       pincode: '',
-      country: 'India',
-      tag: 'others',
+      country: '', // Empty string to match Flutter
+      tag: 'Home', // Default to 'Home' to match Flutter
       latitude: '1',
       longitude: '1',
       is_default: false,
@@ -96,6 +237,9 @@ const AddressManagement = () => {
         // Always include latitude and longitude (set to '1' if not provided)
         if (key === 'latitude' || key === 'longitude') {
           formDataToSend.append(key, formData[key] || '1');
+        } else if (key === 'country') {
+          // Always send country as empty string to match Flutter
+          formDataToSend.append(key, '');
         } else if (formData[key] !== '' && formData[key] !== null && formData[key] !== undefined) {
           formDataToSend.append(key, formData[key]);
         }
@@ -127,8 +271,8 @@ const AddressManagement = () => {
       city: address.city || '',
       state: address.state || '',
       pincode: address.pincode || '',
-      country: address.country || 'India',
-      tag: address.tag || 'others',
+      country: address.country || '', // Empty string to match Flutter
+      tag: address.tag || 'Home', // Default to 'Home' to match Flutter
       latitude: address.latitude || '1',
       longitude: address.longitude || '1',
       is_default: address.is_default || false,
@@ -178,8 +322,6 @@ const AddressManagement = () => {
         return 'bg-blue-100 text-blue-800';
       case 'OFFICE':
         return 'bg-purple-100 text-purple-800';
-      case 'OTHER':
-        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -231,10 +373,49 @@ const AddressManagement = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="p-4 sm:p-6">
+              {/* Use Current Location Button - matches Flutter */}
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={handleUseCurrentLocation}
+                  disabled={isLocationLoading}
+                  className="w-full flex items-center justify-center gap-2 bg-[#ec1b45] text-white px-4 py-3 rounded-md hover:bg-[#d91b40] transition-colors font-medium text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLocationLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Fetching location...</span>
+                    </>
+                  ) : (
+                    <>
+                      <MdLocationOn size={20} />
+                      <span>Use Current Location</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
               <div className="grid grid-cols-1 gap-4">
+                {/* Name (Location Address) - matches Flutter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number *
+                    Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="location_address"
+                    value={formData.location_address}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
+                    placeholder="Enter name"
+                  />
+                </div>
+
+                {/* Mobile Number - matches Flutter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Mobile Number *
                   </label>
                   <input
                     type="tel"
@@ -242,11 +423,29 @@ const AddressManagement = () => {
                     value={formData.phone_number}
                     onChange={handleInputChange}
                     required
+                    maxLength={10}
                     className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
-                    placeholder="Enter phone number"
+                    placeholder="Enter mobile number"
                   />
                 </div>
 
+                {/* Flat No. Street Details (Address) - matches Flutter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Flat No. Street Details *
+                  </label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
+                    placeholder="Enter flat no. and street details"
+                  />
+                </div>
+
+                {/* Landmark - matches Flutter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Landmark *
@@ -262,51 +461,7 @@ const AddressManagement = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Location Address *
-                  </label>
-                  <input
-                    type="text"
-                    name="location_address"
-                    value={formData.location_address}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
-                    placeholder="Enter location address"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Address *
-                  </label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
-                    placeholder="Enter address"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    City *
-                  </label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
-                    placeholder="Enter city"
-                  />
-                </div>
-
+                {/* State - matches Flutter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     State *
@@ -322,6 +477,23 @@ const AddressManagement = () => {
                   />
                 </div>
 
+                {/* District (City) - matches Flutter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    District *
+                  </label>
+                  <input
+                    type="text"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
+                    placeholder="Enter district"
+                  />
+                </div>
+
+                {/* Pincode - matches Flutter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Pincode *
@@ -332,41 +504,43 @@ const AddressManagement = () => {
                     value={formData.pincode}
                     onChange={handleInputChange}
                     required
+                    maxLength={6}
                     className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
                     placeholder="Enter pincode"
                   />
                 </div>
 
+                {/* Address Type (Tag) - matches Flutter: Home/Office only */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Country *
+                    Address Type *
                   </label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="text"
-                    name="country"
-                    value={formData.country}
+                        type="radio"
+                        name="tag"
+                        value="Home"
+                        checked={formData.tag === 'Home'}
                     onChange={handleInputChange}
-                    required
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base"
-                    placeholder="Enter country"
+                        className="w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45]"
+                        style={{ accentColor: '#ec1b45' }}
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tag *
+                      <span className="text-sm text-gray-700">Home</span>
                   </label>
-                  <select
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
                     name="tag"
-                    value={formData.tag}
+                        value="Office"
+                        checked={formData.tag === 'Office'}
                     onChange={handleInputChange}
-                    required
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ec1b45] focus:border-transparent text-sm sm:text-base bg-white"
-                  >
-                    <option value="others">Others</option>
-                    <option value="home">Home</option>
-                    <option value="office">Office</option>
-                  </select>
+                        className="w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45]"
+                        style={{ accentColor: '#ec1b45' }}
+                      />
+                      <span className="text-sm text-gray-700">Office</span>
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -434,7 +608,7 @@ const AddressManagement = () => {
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${getTagColor(address.tag)}`}>
-                        {address.tag || 'OTHER'}
+                        {address.tag || 'Home'}
                       </span>
                       {address.is_default && (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#ec1b45] text-white">

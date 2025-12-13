@@ -43,8 +43,8 @@ const CartPage = () => {
     city: '',
     state: '',
     pincode: '',
-    country: 'India',
-    tag: 'others',
+    country: '', // Empty string to match Flutter and AddressManagement
+    tag: 'Home', // Default to 'Home' to match Flutter and AddressManagement
     latitude: '1',
     longitude: '1',
     is_default: false,
@@ -239,7 +239,10 @@ const CartPage = () => {
                   localStorage.setItem('cartId', '');
                 }
 
-                // Navigate to order success page
+                // Show success message
+                showSuccess("Payment successful! Your order has been placed.");
+
+                // Navigate to order success page (same page used for COD)
                 navigate('/order-success', {
                   state: {
                     orderData: {
@@ -250,7 +253,7 @@ const CartPage = () => {
                     cartData: cartData
                   }
                 });
-              } else {
+    } else {
                 // Payment failed
                 showError("Order Failed! We were unable to process your order due to a payment issue. Please check your payment method and try again.");
               }
@@ -343,7 +346,10 @@ const CartPage = () => {
       Object.keys(newAddress).forEach(key => {
         if (key === 'latitude' || key === 'longitude') {
           formDataToSend.append(key, newAddress[key] || '1');
-        } else {
+        } else if (key === 'country') {
+          // Always send country as empty string to match Flutter
+          formDataToSend.append(key, '');
+        } else if (newAddress[key] !== '' && newAddress[key] !== null && newAddress[key] !== undefined) {
           formDataToSend.append(key, newAddress[key]);
         }
       });
@@ -360,8 +366,8 @@ const CartPage = () => {
         city: '',
         state: '',
         pincode: '',
-        country: 'India',
-        tag: 'home',
+        country: '', // Empty string to match Flutter
+        tag: 'Home', // Default to 'Home' to match Flutter
         latitude: '1',
         longitude: '1',
         is_default: false,
@@ -1350,8 +1356,23 @@ const CartPage = () => {
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
               {isAddingAddress ? (
                 <form id="add-address-form" onSubmit={handleAddAddress} className="space-y-4">
+                  {/* Name (Location Address) - matches Flutter */}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">Phone Number *</label>
+                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">Name *</label>
+                    <input
+                      type="text"
+                      name="location_address"
+                      value={newAddress.location_address}
+                      onChange={handleNewAddressChange}
+                      required
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-[#ec1b45]/20 focus:border-[#ec1b45] transition-all outline-none"
+                      placeholder="Enter name"
+                    />
+                  </div>
+
+                  {/* Mobile Number - matches Flutter */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">Mobile Number *</label>
                     <div className="relative">
                       <input
                         type="tel"
@@ -1360,12 +1381,27 @@ const CartPage = () => {
                         onChange={handleNewAddressChange}
                         required
                         className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-[#ec1b45]/20 focus:border-[#ec1b45] transition-all outline-none"
-                        placeholder="Enter phone number"
-                        maxLength="10"
+                        placeholder="Enter mobile number"
+                        maxLength={10}
                       />
                     </div>
                   </div>
 
+                  {/* Flat No. Street Details (Address) - matches Flutter */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">Flat No. Street Details *</label>
+                    <input
+                      type="text"
+                      name="address"
+                      value={newAddress.address}
+                      onChange={handleNewAddressChange}
+                      required
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-[#ec1b45]/20 focus:border-[#ec1b45] transition-all outline-none"
+                      placeholder="Enter flat no. and street details"
+                    />
+                  </div>
+
+                  {/* Landmark - matches Flutter */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">Landmark *</label>
                     <input
@@ -1379,99 +1415,78 @@ const CartPage = () => {
                     />
                   </div>
 
+                  {/* State - matches Flutter */}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">Location Address *</label>
+                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">State *</label>
                     <input
                       type="text"
-                      name="location_address"
-                      value={newAddress.location_address}
+                      name="state"
+                      value={newAddress.state}
                       onChange={handleNewAddressChange}
                       required
                       className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-[#ec1b45]/20 focus:border-[#ec1b45] transition-all outline-none"
-                      placeholder="Enter location address"
+                      placeholder="Enter state"
                     />
                   </div>
 
+                  {/* District (City) - matches Flutter */}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">Address *</label>
+                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">District *</label>
                     <input
                       type="text"
-                      name="address"
-                      value={newAddress.address}
+                      name="city"
+                      value={newAddress.city}
                       onChange={handleNewAddressChange}
                       required
                       className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-[#ec1b45]/20 focus:border-[#ec1b45] transition-all outline-none"
-                      placeholder="Enter address"
+                      placeholder="Enter district"
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">City *</label>
-                      <input
-                        type="text"
-                        name="city"
-                        value={newAddress.city}
-                        onChange={handleNewAddressChange}
-                        required
-                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-[#ec1b45]/20 focus:border-[#ec1b45] transition-all outline-none"
-                        placeholder="Enter city"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">State *</label>
-                      <input
-                        type="text"
-                        name="state"
-                        value={newAddress.state}
-                        onChange={handleNewAddressChange}
-                        required
-                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-[#ec1b45]/20 focus:border-[#ec1b45] transition-all outline-none"
-                        placeholder="Enter state"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">Pincode *</label>
-                      <input
-                        type="text"
-                        name="pincode"
-                        value={newAddress.pincode}
-                        onChange={handleNewAddressChange}
-                        required
-                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-[#ec1b45]/20 focus:border-[#ec1b45] transition-all outline-none"
-                        placeholder="Enter pincode"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">Country *</label>
-                      <input
-                        type="text"
-                        name="country"
-                        value={newAddress.country}
-                        onChange={handleNewAddressChange}
-                        required
-                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-[#ec1b45]/20 focus:border-[#ec1b45] transition-all outline-none"
-                        placeholder="Enter country"
-                      />
-                    </div>
-                  </div>
-
+                  {/* Pincode - matches Flutter */}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">Tag *</label>
-                    <select
-                      name="tag"
-                      value={newAddress.tag}
+                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">Pincode *</label>
+                    <input
+                      type="text"
+                      name="pincode"
+                      value={newAddress.pincode}
                       onChange={handleNewAddressChange}
                       required
+                      maxLength={6}
                       className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-[#ec1b45]/20 focus:border-[#ec1b45] transition-all outline-none"
-                    >
-                      <option value="others">Others</option>
-                      <option value="home">Home</option>
-                      <option value="office">Office</option>
-                    </select>
+                      placeholder="Enter pincode"
+                    />
+                  </div>
+
+                  {/* Address Type (Tag) - matches Flutter: Home/Office only */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">Address Type *</label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="tag"
+                          value="Home"
+                          checked={newAddress.tag === 'Home'}
+                          onChange={handleNewAddressChange}
+                          className="w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45]"
+                          style={{ accentColor: '#ec1b45' }}
+                        />
+                        <span className="text-sm text-gray-700">Home</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="tag"
+                          value="Office"
+                          checked={newAddress.tag === 'Office'}
+                          onChange={handleNewAddressChange}
+                          className="w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45]"
+                          style={{ accentColor: '#ec1b45' }}
+                        />
+                        <span className="text-sm text-gray-700">Office</span>
+                      </label>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-3 pt-2">

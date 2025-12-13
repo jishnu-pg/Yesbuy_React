@@ -1,7 +1,7 @@
 import Header from "./components/Header";
 import CartToast from "./components/CartToast";
 import ScrollToTop from "./components/ScrollToTop";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { createContext } from "react";
 import Footer from "./components/Footer";
 export const ToastContext = createContext();
@@ -9,9 +9,14 @@ import HeaderCategoryText from "./components/HeaderCategoryText";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import HeaderCategory from "./components/HeaderCategory";
+import { useSelector } from "react-redux";
 
 const App = () => {
   const [showToast, setShowToast] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
+  const accessToken = localStorage.getItem("accessToken");
 
   const showCartToast = () => {
     setShowToast(true);
@@ -22,7 +27,6 @@ const App = () => {
   };
   const [showStickyBar, setShowStickyBar] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const location = useLocation();
   const isHome = location.pathname === "/" || location.pathname === "/home";
 
   useEffect(() => {
@@ -43,6 +47,33 @@ const App = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [isHome]);
+
+  // Prevent back navigation to auth pages after successful authentication
+  // This listener persists throughout the session and handles multiple back clicks
+  useEffect(() => {
+    // Only add listener if user is authenticated
+    if (!isAuthenticated && !accessToken) return;
+
+    const preventBackToAuth = () => {
+      const currentPath = window.location.pathname;
+      // If user navigates back to auth pages, immediately redirect to home
+      if (currentPath === '/otp' || currentPath === '/login' || currentPath === '/register') {
+        // Replace current entry with home
+        window.history.replaceState(null, '', '/home');
+        navigate("/home", { replace: true });
+      }
+    };
+
+    // Add popstate listener to catch back button clicks
+    window.addEventListener('popstate', preventBackToAuth);
+    
+    // Also check on location change (in case of direct navigation)
+    preventBackToAuth();
+
+    return () => {
+      window.removeEventListener('popstate', preventBackToAuth);
+    };
+  }, [isAuthenticated, accessToken, navigate, location]);
 
   return (
     <ToastContext.Provider value={{ showCartToast }}>

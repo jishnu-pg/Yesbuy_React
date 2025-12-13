@@ -61,11 +61,6 @@ const CategoryShopping = () => {
               to={`/category/${cat.id}`}
               className="bg-white flex flex-col items-center justify-center text-lg font-semibold text-gray-700 hover:text-white transition relative overflow-hidden rounded-lg aspect-square"
             >
-              <div className="absolute bottom-2 left-2 right-2 z-10 flex flex-col items-center bg-[#ec1b45]/70 text-white text-xs font-bold px-1.5 py-1.5 rounded shadow-lg space-y-0.5">
-                <span className="text-[14px]">{cat.name}</span>
-                <span className="text-[12px]">Shop Now</span>
-              </div>
-
               {/* Category images: 684×684 pixels (1:1 ratio) */}
               <div className="w-full h-full aspect-square overflow-hidden">
                 <img
@@ -76,6 +71,16 @@ const CategoryShopping = () => {
                     e.target.src = "https://via.placeholder.com/300?text=No+Image";
                   }}
                 />
+              </div>
+
+              {/* Badge Overlay - Bottom aligned with proper text alignment */}
+              <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-center bg-[#ec1b45]/90 text-white px-2 sm:px-3 py-2 sm:py-2.5 rounded-b-lg">
+                <span className="text-sm sm:text-base font-bold text-center leading-tight mb-0.5 sm:mb-1">
+                  {cat.name}
+                </span>
+                <span className="text-xs sm:text-sm font-medium text-center">
+                  Shop Now
+                </span>
               </div>
             </Link>
           ))}

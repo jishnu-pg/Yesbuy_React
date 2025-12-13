@@ -9,9 +9,25 @@ const ProductActions = ({
   isFavorite,
   product,
   onAddToCart,
-  onAddToFavorite
+  onAddToFavorite,
+  isRunningMaterial
 }) => {
-  const isCartDisabled = !selectedVariant || isAddingToCart;
+  // Check if product is out of stock
+  const isOutOfStock = () => {
+    if (!selectedVariant) return true;
+    
+    if (isRunningMaterial) {
+      // For running_material, check available_meter or maximum_meter
+      const availableMeter = product?.available_meter || selectedVariant?.maximum_meter || 0;
+      return availableMeter <= 0;
+    } else {
+      // For regular products, check quantity
+      return !selectedVariant.quantity || selectedVariant.quantity <= 0;
+    }
+  };
+
+  const outOfStock = isOutOfStock();
+  const isCartDisabled = !selectedVariant || isAddingToCart || outOfStock;
 
   return (
     <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-4 sm:mt-6">
@@ -23,6 +39,10 @@ const ProductActions = ({
         {isAddingToCart ? (
           <>
             <span className="animate-spin">⏳</span> Adding...
+          </>
+        ) : outOfStock ? (
+          <>
+            <BsHandbag /> Out of Stock
           </>
         ) : (
           <>

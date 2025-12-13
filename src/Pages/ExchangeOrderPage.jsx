@@ -20,6 +20,7 @@ const ExchangeOrderPage = () => {
   const [showSizeChart, setShowSizeChart] = useState(false);
   const [availableSizes, setAvailableSizes] = useState([]);
   const [currentSize, setCurrentSize] = useState("");
+  const [selectedExchangeMethod, setSelectedExchangeMethod] = useState("Exchange Online");
 
   useEffect(() => {
     if (orderId) {
@@ -136,8 +137,21 @@ const ExchangeOrderPage = () => {
       return;
     }
 
+    // Validate additional comment is not empty (required in Flutter)
+    if (!additionalComment || additionalComment.trim() === "") {
+      showError("Please enter a comment before continuing");
+      return;
+    }
+
     if (!selectedSize) {
       showError("Please select a size");
+      return;
+    }
+
+    // Check if reason is "wrong size or fit" and selected size is current size
+    const isWrongSizeReason = selectedReason?.toLowerCase() === "wrong size or fit";
+    if (isWrongSizeReason && selectedSize?.size === currentSize) {
+      showError("Cannot select current size when reason is 'Wrong Size or Fit'");
       return;
     }
 
@@ -149,6 +163,7 @@ const ExchangeOrderPage = () => {
         additionalComment,
         selectedSize,
         productVariants,
+        exchangeMethod: selectedExchangeMethod,
       },
     });
   };
@@ -183,6 +198,10 @@ const ExchangeOrderPage = () => {
   }
 
   const order = orderDetail.order || {};
+  const paymentMethod = orderDetail?.payment_method || "";
+  const isPickupOrder = paymentMethod?.toUpperCase() === "PICKUP PAY" || 
+                        paymentMethod?.toUpperCase() === "PICKUP IN STORE" ||
+                        paymentMethod?.toUpperCase() === "PICKUP";
 
   return (
     <div className="min-h-screen bg-white">
@@ -331,7 +350,16 @@ const ExchangeOrderPage = () => {
                     name="exchangeReason"
                     value={reasonText}
                     checked={isSelected}
-                    onChange={(e) => setSelectedReason(e.target.value)}
+                    onChange={(e) => {
+                      const newReason = e.target.value;
+                      setSelectedReason(newReason);
+                      
+                      // If reason is "wrong size or fit" and selected size is current size, clear selection
+                      const isWrongSizeReason = newReason?.toLowerCase() === "wrong size or fit";
+                      if (isWrongSizeReason && selectedSize?.size === currentSize) {
+                        setSelectedSize(null);
+                      }
+                    }}
                     className="mt-0.5 w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-0 focus:outline-none"
                     style={{ accentColor: '#ec1b45' }}
                   />
@@ -347,8 +375,7 @@ const ExchangeOrderPage = () => {
         {/* Additional Comment */}
         <div className="mb-8">
           <label className="block text-sm font-semibold text-gray-900 mb-2">
-            Additional Comment
-            {/* <span className="text-gray-500 font-normal">(Optional)</span> */}
+            Additional Comment <span className="text-red-500">*</span>
           </label>
           <textarea
             value={additionalComment}
@@ -373,12 +400,18 @@ const ExchangeOrderPage = () => {
               {availableSizes.map((sizeInfo) => {
                 const isSelected = selectedSize?.size === sizeInfo.size;
                 const isCurrentSize = sizeInfo.size === currentSize;
+                // Check if reason is "wrong size or fit" (case-insensitive)
+                const isWrongSizeReason = selectedReason?.toLowerCase() === "wrong size or fit";
+                // Current size is only disabled if reason is "wrong size or fit"
+                const isDisabled = isCurrentSize && isWrongSizeReason;
+                
                 return (
                   <button
                     key={sizeInfo.size}
                     onClick={() => setSelectedSize(sizeInfo)}
-                    disabled={isCurrentSize}
-                    className={`px-5 py-2.5 rounded-lg border-2 transition-all font-medium text-sm ${isCurrentSize
+                    disabled={isDisabled}
+                    className={`px-5 py-2.5 rounded-lg border-2 transition-all font-medium text-sm ${
+                      isDisabled
                       ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                       : isSelected
                         ? 'bg-[#ec1b45] text-white border-[#ec1b45]'
@@ -404,6 +437,38 @@ const ExchangeOrderPage = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
+          </div>
+        )}
+
+        {/* Exchange Method Selection - Only for PICKUP PAY orders */}
+        {isPickupOrder && (
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Select Exchange Method</h2>
+            <div className="space-y-3">
+              {["Exchange Online", "Exchange Direct From Store"].map((method) => (
+                <label
+                  key={method}
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    selectedExchangeMethod === method
+                      ? 'border-[#ec1b45] bg-red-50'
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="exchangeMethod"
+                    value={method}
+                    checked={selectedExchangeMethod === method}
+                    onChange={(e) => setSelectedExchangeMethod(e.target.value)}
+                    className="w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-0 focus:outline-none"
+                    style={{ accentColor: '#ec1b45' }}
+                  />
+                  <span className={`text-sm flex-1 ${selectedExchangeMethod === method ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+                    {method}
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
         )}
 

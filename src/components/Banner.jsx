@@ -18,9 +18,14 @@ const Banner = ({ heading }) => {
         setIsLoading(true);
         const response = await getAllDiscounts();
         
-        // Map discount API response to banner format
+        // Filter for BIGGEST_SALE offers only (matches Flutter)
         if (response.results && response.results.length > 0) {
-          const mappedBanners = response.results.flatMap((discount) => {
+          const biggestSaleOffers = response.results.filter(
+            (discount) => discount.offer_type === "BIGGEST_SALE"
+          );
+          
+          // Map discount API response to banner format
+          const mappedBanners = biggestSaleOffers.flatMap((discount) => {
             // Get images from discount.images array
             if (discount.images && discount.images.length > 0) {
               return discount.images.map((img) => ({
@@ -102,8 +107,8 @@ const Banner = ({ heading }) => {
               onClick={() => handleBannerClick(banner)}
               className="block w-full cursor-pointer"
             >
-              {/* Banner images: 500×250 pixels (2:1 ratio) */}
-              <div className="w-full aspect-[2/1] bg-gray-100 overflow-hidden rounded">
+              {/* Banner images: 16:9 aspect ratio (matches Flutter) */}
+              <div className="w-full aspect-[16/9] bg-gray-100 overflow-hidden rounded">
                 <img
                   src={banner.bannerUrl}
                   alt={banner.altText}

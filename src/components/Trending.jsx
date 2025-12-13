@@ -23,9 +23,12 @@ const Trending = () => {
       if (response.results && response.results.length > 0) {
         // Map API response to ProductCard format
             const mappedProducts = response.results.map((product) => ({
-              id: product.product_id || product.variant_id,
+              // MUST use product_id (not variant_id) - matches mobile app behavior
+              // Mobile app uses: productId (maps to product_id from API)
+              // API get-product-variants-by-id requires product_id
+              id: product.product_id, // Remove variant_id fallback
               product_id: product.product_id,
-              variant_id: product.variant_id,
+              variant_id: product.variant_id, // Keep for reference but don't use for navigation
               title: product.name,
               name: product.name,
               price: product.discount_price?.has_offer 
@@ -54,7 +57,7 @@ const Trending = () => {
           slug: product.slug,
           isFavourite: product.is_favourite,
           is_favourite: product.is_favourite,
-          is_trending: product.discount_price?.offer_type === "Trending_Offers",
+          is_trending: true, // All products from trending list API show trending badge (matches Flutter)
           size_type: product.size_type,
           minimum_meter: product.minimum_meter,
         }));

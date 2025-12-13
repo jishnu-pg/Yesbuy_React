@@ -16,6 +16,7 @@ const ReturnOrderPage = () => {
   const [selectedReason, setSelectedReason] = useState("");
   const [returnReasons, setReturnReasons] = useState([]);
   const [additionalComment, setAdditionalComment] = useState("");
+  const [selectedReturnMethod, setSelectedReturnMethod] = useState("Return Online"); // "Return Online" or "Return Direct From Store"
 
   useEffect(() => {
     if (orderId) {
@@ -85,15 +86,42 @@ const ReturnOrderPage = () => {
       return;
     }
 
+    // Validate additional comment is not empty (required in Flutter)
+    if (!additionalComment || additionalComment.trim() === "") {
+      showError("Please enter a comment before continuing");
+      return;
+    }
+
+    // If "Return Direct From Store" is selected, submit directly
+    if (selectedReturnMethod === "Return Direct From Store") {
+      // This will be handled in ReturnRefundPage
+      navigate(`/order/${orderId}/return/refund`, {
+        state: {
+          orderDetail,
+          returnReason: selectedReason,
+          additionalComment,
+          returnMethod: selectedReturnMethod,
+        },
+      });
+      return;
+    }
+
     // Navigate to refund page with return reason data
     navigate(`/order/${orderId}/return/refund`, {
       state: {
         orderDetail,
         returnReason: selectedReason,
         additionalComment,
+        returnMethod: selectedReturnMethod,
       },
     });
   };
+
+  // Check if order is PICKUP PAY to show return method selection
+  const paymentMethod = orderDetail?.payment_method || "";
+  const isPickupOrder = paymentMethod?.toUpperCase() === "PICKUP PAY" || 
+                        paymentMethod?.toUpperCase() === "PICKUP IN STORE" ||
+                        paymentMethod?.toUpperCase() === "PICKUP";
 
   if (isLoading) {
     return (
@@ -282,11 +310,42 @@ const ReturnOrderPage = () => {
           </div>
         </div>
 
+        {/* Return Method Selection - Only for PICKUP orders */}
+        {isPickupOrder && (
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Return Method</h2>
+            <div className="space-y-3">
+              {["Return Online", "Return Direct From Store"].map((method) => (
+                <label
+                  key={method}
+                  className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    selectedReturnMethod === method
+                      ? 'border-[#ec1b45] bg-red-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="returnMethod"
+                    value={method}
+                    checked={selectedReturnMethod === method}
+                    onChange={(e) => setSelectedReturnMethod(e.target.value)}
+                    className="w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45]"
+                    style={{ accentColor: '#ec1b45' }}
+                  />
+                  <span className={`text-sm font-medium ${selectedReturnMethod === method ? 'text-gray-900' : 'text-gray-700'}`}>
+                    {method}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Additional Comment */}
         <div className="mb-8">
           <label className="block text-sm font-semibold text-gray-900 mb-2">
-            Additional Comment
-            {/* <span className="text-gray-500 font-normal">(Optional)</span> */}
+            Additional Comment <span className="text-red-500">*</span>
           </label>
           <textarea
             value={additionalComment}

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { listAddresses } from "../services/api/address";
-import { listBankAccounts } from "../services/api/bankAccount";
-import { returnOrder } from "../services/api/order";
+import { listBankAccounts, addBankAccount } from "../services/api/bankAccount";
+import { returnOrder, getOrderDetails } from "../services/api/order";
 import { showError, showSuccess } from "../utils/toast";
 import LoaderSpinner from "../components/LoaderSpinner";
 import { FaArrowLeft, FaCopy, FaCheckCircle, FaCalendarAlt, FaTimes } from "react-icons/fa";
@@ -15,6 +15,7 @@ const ReturnRefundPage = () => {
   const [orderDetail, setOrderDetail] = useState(location.state?.orderDetail || null);
   const [returnReason, setReturnReason] = useState(location.state?.returnReason || "");
   const [additionalComment, setAdditionalComment] = useState(location.state?.additionalComment || "");
+  const [returnMethod, setReturnMethod] = useState(location.state?.returnMethod || "Return Online");
   const [addresses, setAddresses] = useState([]);
   const [bankAccounts, setBankAccounts] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
@@ -22,10 +23,65 @@ const ReturnRefundPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddressPopup, setShowAddressPopup] = useState(false);
+  const [showBankRefundPopup, setShowBankRefundPopup] = useState(false);
+  const [showDirectStorePopup, setShowDirectStorePopup] = useState(false);
+  const [showAddAccountPopup, setShowAddAccountPopup] = useState(false);
+  const [isAddingAccount, setIsAddingAccount] = useState(false);
+  const [accountFormData, setAccountFormData] = useState({
+    account_number: "",
+    confirm_account_number: "",
+    ifsc_code: "",
+    account_holder_name: "",
+    bank_name: "",
+    branch_name: "",
+    account_type: "SAVINGS",
+  });
+  const [accountFormErrors, setAccountFormErrors] = useState({
+    account_holder_name: "",
+    bank_name: "",
+    branch_name: "",
+    account_number: "",
+    confirm_account_number: "",
+    ifsc_code: "",
+    account_type: "",
+  });
 
   useEffect(() => {
     fetchData();
-  }, []);
+    
+    // If orderDetail is not in location.state, fetch it
+    if (!orderDetail && orderId) {
+      const fetchOrderDetails = async () => {
+        try {
+          const response = await getOrderDetails(orderId);
+          if (response.result) {
+            setOrderDetail(response.result);
+          }
+        } catch (error) {
+          console.error("Failed to fetch order details:", error);
+        }
+      };
+      fetchOrderDetails();
+    }
+  }, [orderId]);
+
+  // Auto-select bank account only if it's mandatory (not for BANK payments)
+  useEffect(() => {
+    if (orderDetail && bankAccounts.length > 0) {
+      const paymentMethod = orderDetail?.payment_method || "";
+      const isBankPayment = paymentMethod?.toLowerCase() === "bank";
+      const isDirectStoreReturn = returnMethod === "Return Direct From Store";
+      const isBankAccMandatory = !isBankPayment && !isDirectStoreReturn;
+      
+      // Only auto-select if bank account is mandatory and none is selected
+      if (isBankAccMandatory && !selectedBankAccountId) {
+        setSelectedBankAccountId(bankAccounts[0].id);
+      } else if (!isBankAccMandatory) {
+        // Clear selection if not mandatory
+        setSelectedBankAccountId(null);
+      }
+    }
+  }, [orderDetail, bankAccounts, returnMethod]);
 
   const fetchData = async () => {
     try {
@@ -42,15 +98,12 @@ const ReturnRefundPage = () => {
         }
       }
 
-      // Fetch bank accounts
+      // Fetch bank accounts (will conditionally use based on payment method)
       try {
         const bankAccountsResponse = await listBankAccounts();
         if (bankAccountsResponse.results) {
           setBankAccounts(bankAccountsResponse.results);
-          // Select first account if available
-          if (bankAccountsResponse.results.length > 0) {
-            setSelectedBankAccountId(bankAccountsResponse.results[0].id);
-          }
+          // Don't auto-select - will be handled in useEffect based on payment method
         }
       } catch (error) {
         console.error("Failed to fetch bank accounts:", error);
@@ -87,11 +140,13 @@ const ReturnRefundPage = () => {
   };
 
   const formatAddress = (address) => {
+    // Match Flutter format: address, landmark, city, state, country, pincode
     const parts = [
-      address.location_address,
       address.address,
+      address.landmark,
       address.city,
       address.state,
+      address.country,
       address.pincode,
     ].filter(Boolean);
     return parts.join(', ');
@@ -106,7 +161,37 @@ const ReturnRefundPage = () => {
     return 'N/A';
   };
 
+  // Check payment method and return method
+  // Payment method is at result level, not inside order object
+  const paymentMethod = orderDetail?.payment_method || "";
+  const isBankPayment = paymentMethod?.toLowerCase() === "bank";
+  const isDirectStoreReturn = returnMethod === "Return Direct From Store";
+  const isBankAccMandatory = !isBankPayment && !isDirectStoreReturn;
+
+  // Debug logging (remove in production)
+  console.log("Return Refund Page - Payment Method Detection:", {
+    paymentMethod,
+    isBankPayment,
+    isDirectStoreReturn,
+    isBankAccMandatory,
+    orderDetailPaymentMethod: orderDetail?.payment_method,
+    fullOrderDetail: orderDetail
+  });
+
   const handleContinue = async () => {
+    // For "Return Direct From Store", show confirmation popup
+    if (isDirectStoreReturn) {
+      setShowDirectStorePopup(true);
+      return;
+    }
+
+    // For BANK payment, show refund to original payment popup
+    if (isBankPayment) {
+      setShowBankRefundPopup(true);
+      return;
+    }
+
+    // For "Return Online" (COD/PICKUP), validate address and bank account
     if (!selectedAddressId) {
       showError("Please select a pickup address");
       return;
@@ -117,25 +202,43 @@ const ReturnRefundPage = () => {
       return;
     }
 
+    // Submit return
+    await submitReturn();
+  };
+
+  const submitReturn = async () => {
     try {
       setIsSubmitting(true);
       
+      // Validate additional comment is not empty (required in Flutter)
+      if (!additionalComment || additionalComment.trim() === "") {
+        showError("Please enter a comment before continuing");
+        setIsSubmitting(false);
+        return;
+      }
+      
       // The API expects cart item ID in the order_id field
-      // order.id is the cart item order ID
       const cartItemId = orderDetail?.order?.id;
       
       if (!cartItemId) {
         showError("Unable to find order item ID");
+        setIsSubmitting(false);
         return;
       }
+
+      // Determine return type based on return method
+      const returnType = isDirectStoreReturn ? "IN_STORE" : "DELIVERY";
+      
+      // Bank account is only required for COD/PICKUP with "Return Online"
+      const bankAccountId = isBankAccMandatory ? selectedBankAccountId : "";
       
       const returnData = {
         order_id: cartItemId,
-        address_id: selectedAddressId,
+        address_id: isDirectStoreReturn ? "" : selectedAddressId,
         reason: returnReason,
-        sub_reason: additionalComment || undefined,
-        bank_account_id: selectedBankAccountId,
-        return_type: 'DELIVERY',
+        sub_reason: additionalComment.trim(), // Required field, always send
+        bank_account_id: bankAccountId,
+        return_type: returnType,
       };
 
       await returnOrder(returnData);
@@ -146,18 +249,194 @@ const ReturnRefundPage = () => {
       showError(error.message || "Failed to initiate return. Please try again.");
     } finally {
       setIsSubmitting(false);
+      setShowBankRefundPopup(false);
+      setShowDirectStorePopup(false);
     }
   };
 
   const handleAddNewAccount = () => {
-    navigate(`/order/${orderId}/return/add-account`, {
-      state: {
-        orderDetail,
-        returnReason,
-        additionalComment,
-        selectedAddressId,
-      },
-    });
+    setShowAddAccountPopup(true);
+  };
+
+  const handleAccountInputChange = (e) => {
+    const { name, value } = e.target;
+    setAccountFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    // Clear error for this field when user starts typing
+    if (accountFormErrors[name]) {
+      setAccountFormErrors((prev) => ({
+        ...prev,
+        [name]: "",
+      }));
+    }
+  };
+
+  const validateField = (name, value) => {
+    let error = "";
+    
+    switch (name) {
+      case "account_holder_name":
+        if (!value?.trim()) {
+          error = "Account holder name is required";
+        }
+        break;
+      case "bank_name":
+        if (!value?.trim()) {
+          error = "Bank name is required";
+        }
+        break;
+      case "branch_name":
+        if (!value?.trim()) {
+          error = "Branch name is required";
+        }
+        break;
+      case "account_number":
+        if (!value?.trim()) {
+          error = "Account number is required";
+        } else if (value.length < 9 || value.length > 18) {
+          error = "Account number must be between 9 and 18 digits";
+        }
+        break;
+      case "confirm_account_number":
+        if (!value?.trim()) {
+          error = "Please re-enter account number";
+        } else if (accountFormData.account_number && value !== accountFormData.account_number) {
+          error = "Account numbers do not match";
+        }
+        break;
+      case "ifsc_code":
+        if (!value?.trim()) {
+          error = "IFSC code is required";
+        } else if (value.length !== 11) {
+          error = "IFSC code must be 11 characters";
+        }
+        break;
+      default:
+        break;
+    }
+    
+    return error;
+  };
+
+  const handleAccountFieldBlur = (e) => {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    setAccountFormErrors((prev) => ({
+      ...prev,
+      [name]: error,
+    }));
+    
+    // Also validate confirm_account_number if account_number changed
+    if (name === "account_number" && accountFormData.confirm_account_number) {
+      const confirmError = validateField("confirm_account_number", accountFormData.confirm_account_number);
+      setAccountFormErrors((prev) => ({
+        ...prev,
+        confirm_account_number: confirmError,
+      }));
+    }
+  };
+
+  const validateAccountForm = () => {
+    const errors = {
+      account_holder_name: validateField("account_holder_name", accountFormData.account_holder_name),
+      bank_name: validateField("bank_name", accountFormData.bank_name),
+      branch_name: validateField("branch_name", accountFormData.branch_name),
+      account_number: validateField("account_number", accountFormData.account_number),
+      confirm_account_number: validateField("confirm_account_number", accountFormData.confirm_account_number),
+      ifsc_code: validateField("ifsc_code", accountFormData.ifsc_code),
+      account_type: "",
+    };
+    
+    setAccountFormErrors(errors);
+    
+    // Check if there are any errors
+    const hasErrors = Object.values(errors).some(error => error !== "");
+    
+    if (hasErrors) {
+      // Show first error message
+      const firstError = Object.values(errors).find(error => error !== "");
+      if (firstError) {
+        showError(firstError);
+      }
+      return false;
+    }
+    
+    return true;
+  };
+
+  const isAccountFormValid = () => {
+    // Check all required fields are filled
+    if (!accountFormData.account_holder_name?.trim()) return false;
+    if (!accountFormData.bank_name?.trim()) return false;
+    if (!accountFormData.branch_name?.trim()) return false;
+    if (!accountFormData.account_number?.trim()) return false;
+    if (!accountFormData.confirm_account_number?.trim()) return false;
+    if (!accountFormData.ifsc_code?.trim()) return false;
+    if (!accountFormData.account_type) return false;
+    
+    // Check account numbers match
+    if (accountFormData.account_number !== accountFormData.confirm_account_number) return false;
+    
+    // Check account number length (9-18 digits)
+    const accountNumberLength = accountFormData.account_number.length;
+    if (accountNumberLength < 9 || accountNumberLength > 18) return false;
+    
+    // Check IFSC code length (11 characters)
+    if (accountFormData.ifsc_code.length !== 11) return false;
+    
+    return true;
+  };
+
+  const handleAddAccountSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateAccountForm()) {
+      return;
+    }
+
+    try {
+      setIsAddingAccount(true);
+      
+      const submitFormData = new FormData();
+      submitFormData.append('account_holder_name', accountFormData.account_holder_name);
+      submitFormData.append('bank_name', accountFormData.bank_name);
+      submitFormData.append('branch_name', accountFormData.branch_name);
+      submitFormData.append('account_number', accountFormData.account_number);
+      submitFormData.append('ifsc_code', accountFormData.ifsc_code.toUpperCase());
+      submitFormData.append('account_type', accountFormData.account_type);
+
+      await addBankAccount(submitFormData);
+      
+      // Refresh bank accounts list
+      const bankAccountsResponse = await listBankAccounts();
+      if (bankAccountsResponse.results) {
+        setBankAccounts(bankAccountsResponse.results);
+        // Select the newly added account (it will be the last one)
+        if (bankAccountsResponse.results.length > 0) {
+          setSelectedBankAccountId(bankAccountsResponse.results[bankAccountsResponse.results.length - 1].id);
+        }
+      }
+
+      showSuccess("Bank account added successfully!");
+      
+      // Reset form and close popup
+      setAccountFormData({
+        account_number: "",
+        confirm_account_number: "",
+        ifsc_code: "",
+        account_holder_name: "",
+        bank_name: "",
+        branch_name: "",
+      });
+      setShowAddAccountPopup(false);
+    } catch (error) {
+      console.error("Failed to add bank account:", error);
+      showError(error.message || "Failed to add bank account. Please try again.");
+    } finally {
+      setIsAddingAccount(false);
+    }
   };
 
   if (isLoading) {
@@ -306,7 +585,8 @@ const ReturnRefundPage = () => {
           </div>
         </div>
 
-        {/* Pickup Address */}
+        {/* Pickup Address - Only for "Return Online" */}
+        {!isDirectStoreReturn && (
         <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Pickup Address</h2>
@@ -321,23 +601,31 @@ const ReturnRefundPage = () => {
             <div className="flex items-start gap-3">
               <IoLocationOutline size={20} className="text-gray-400 mt-1 flex-shrink-0" />
               <div className="flex-1">
-                <p className="font-medium text-gray-900 mb-1">{selectedAddress.phone_number || 'N/A'}</p>
-                <p className="text-sm text-gray-600">{formatAddress(selectedAddress)}</p>
+                {/* Match Flutter format: location_address (Name) as bold header */}
+                {selectedAddress.location_address && (
+                  <p className="font-bold text-gray-900 mb-1">{selectedAddress.location_address}</p>
+                )}
+                <p className="text-sm text-gray-600 mb-1">{formatAddress(selectedAddress)}</p>
+                <p className="text-xs text-gray-500">{selectedAddress.phone_number || 'N/A'}</p>
               </div>
             </div>
           ) : (
             <p className="text-sm text-gray-600">No address selected</p>
           )}
         </div>
+        )}
 
-        {/* Refund Amount */}
+        {/* Refund Amount - Only show for non-BANK payments */}
+        {!isBankPayment && (
         <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-2">
             Refund Amount : {formatPrice(order.total_amount)}
           </h2>
         </div>
+        )}
 
-        {/* Add Account */}
+        {/* Add Account - Only for COD/PICKUP with "Return Online" */}
+        {isBankAccMandatory && (
         <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Add Account</h2>
           <p className="text-sm text-gray-600 mb-4">
@@ -381,23 +669,24 @@ const ReturnRefundPage = () => {
             + Add New Account
           </button>
         </div>
+        )}
 
         {/* Continue Button */}
         <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 -mx-4 sm:mx-0 sm:rounded-lg sm:border sm:mt-6">
           <button
             onClick={handleContinue}
-            disabled={isSubmitting || !selectedAddressId || !selectedBankAccountId}
+            disabled={isSubmitting || (!isDirectStoreReturn && !isBankPayment && (!selectedAddressId || !selectedBankAccountId))}
             className="w-full bg-[#ec1b45] text-white py-3 px-6 rounded-md hover:bg-[#d91b40] transition-colors font-semibold text-base disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? "Processing..." : "Continue"}
+            {isSubmitting ? "Processing..." : isDirectStoreReturn ? "Process In Store Return" : "Continue"}
           </button>
         </div>
       </div>
 
       {/* Address Change Popup */}
       {showAddressPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-t-lg sm:rounded-lg w-full max-w-md max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 pointer-events-none">
+          <div className="bg-white rounded-t-lg sm:rounded-lg w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl border border-gray-200 pointer-events-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Change Address</h3>
               <button
@@ -426,10 +715,14 @@ const ReturnRefundPage = () => {
                   />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-900 mb-1">
-                      {address.tag || 'Address'}
+                      {address.tag || 'Home'}
                     </p>
-                    <p className="text-sm text-gray-600 mb-1">{address.phone_number || 'N/A'}</p>
-                    <p className="text-xs text-gray-500">{formatAddress(address)}</p>
+                    {/* Match Flutter format: location_address (Name) as bold */}
+                    {address.location_address && (
+                      <p className="text-sm font-bold text-gray-900 mb-1">{address.location_address}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mb-1">{formatAddress(address)}</p>
+                    <p className="text-xs text-gray-500">{address.phone_number || 'N/A'}</p>
                   </div>
                 </label>
               ))}
@@ -443,6 +736,301 @@ const ReturnRefundPage = () => {
                 + Add New Address
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bank Payment Refund Popup */}
+      {showBankRefundPopup && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
+          <div className="bg-white rounded-lg w-full max-w-md p-6 shadow-2xl border border-gray-200 pointer-events-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Refund to Original Payment Method</h3>
+              <button
+                onClick={() => setShowBankRefundPopup(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FaTimes size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-6">
+              Refund to your original payment method, contact Yes Bharath for your refund status.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowBankRefundPopup(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitReturn}
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2 bg-[#ec1b45] text-white rounded-md hover:bg-[#d91b40] transition-colors font-medium disabled:bg-gray-300"
+              >
+                {isSubmitting ? "Processing..." : "Continue"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Store Return Popup */}
+      {showDirectStorePopup && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
+          <div className="bg-white rounded-lg w-full max-w-md p-6 shadow-2xl border border-gray-200 pointer-events-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900 text-center flex-1">Return Direct<br />From Store</h3>
+              <button
+                onClick={() => setShowDirectStorePopup(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FaTimes size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-6">
+              Return your item at our store with the original receipt and intact packaging. Once inspected and approved, choose a refund to your payment method, subject to our return policy timeframes. A return receipt will be provided.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDirectStorePopup(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitReturn}
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2 bg-[#ec1b45] text-white rounded-md hover:bg-[#d91b40] transition-colors font-medium disabled:bg-gray-300"
+              >
+                {isSubmitting ? "Processing..." : "Process In Store Return"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Bank Account Popup */}
+      {showAddAccountPopup && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 overflow-y-auto pointer-events-none">
+          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 pointer-events-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between z-10">
+              <h3 className="text-lg font-semibold text-gray-900">Add New Bank Account</h3>
+              <button
+                onClick={() => {
+                  setShowAddAccountPopup(false);
+                  setAccountFormData({
+                    account_number: "",
+                    confirm_account_number: "",
+                    ifsc_code: "",
+                    account_holder_name: "",
+                    bank_name: "",
+                    branch_name: "",
+                    account_type: "SAVINGS",
+                  });
+                  setAccountFormErrors({
+                    account_holder_name: "",
+                    bank_name: "",
+                    branch_name: "",
+                    account_number: "",
+                    confirm_account_number: "",
+                    ifsc_code: "",
+                    account_type: "",
+                  });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FaTimes size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleAddAccountSubmit} className="p-4 space-y-4">
+              {/* Account Holder Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Account Holder Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="account_holder_name"
+                  value={accountFormData.account_holder_name}
+                  onChange={handleAccountInputChange}
+                  onBlur={handleAccountFieldBlur}
+                  placeholder="Enter account holder name"
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none ${
+                    accountFormErrors.account_holder_name ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {accountFormErrors.account_holder_name && (
+                  <p className="text-sm text-red-600 mt-1">{accountFormErrors.account_holder_name}</p>
+                )}
+              </div>
+
+              {/* Bank Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Bank Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="bank_name"
+                  value={accountFormData.bank_name}
+                  onChange={handleAccountInputChange}
+                  onBlur={handleAccountFieldBlur}
+                  placeholder="Enter bank name"
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none ${
+                    accountFormErrors.bank_name ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {accountFormErrors.bank_name && (
+                  <p className="text-sm text-red-600 mt-1">{accountFormErrors.bank_name}</p>
+                )}
+              </div>
+
+              {/* Branch Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Branch Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="branch_name"
+                  value={accountFormData.branch_name}
+                  onChange={handleAccountInputChange}
+                  onBlur={handleAccountFieldBlur}
+                  placeholder="Enter branch name"
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none ${
+                    accountFormErrors.branch_name ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {accountFormErrors.branch_name && (
+                  <p className="text-sm text-red-600 mt-1">{accountFormErrors.branch_name}</p>
+                )}
+              </div>
+
+              {/* Account Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Account Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="account_number"
+                  value={accountFormData.account_number}
+                  onChange={handleAccountInputChange}
+                  onBlur={handleAccountFieldBlur}
+                  placeholder="Enter account number"
+                  maxLength={18}
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none ${
+                    accountFormErrors.account_number ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {accountFormErrors.account_number && (
+                  <p className="text-sm text-red-600 mt-1">{accountFormErrors.account_number}</p>
+                )}
+              </div>
+
+              {/* Re-enter Account Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Re-enter Account Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="confirm_account_number"
+                  value={accountFormData.confirm_account_number}
+                  onChange={handleAccountInputChange}
+                  onBlur={handleAccountFieldBlur}
+                  placeholder="Re-enter account number"
+                  maxLength={18}
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none ${
+                    accountFormErrors.confirm_account_number ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {accountFormErrors.confirm_account_number && (
+                  <p className="text-sm text-red-600 mt-1">{accountFormErrors.confirm_account_number}</p>
+                )}
+              </div>
+
+              {/* IFSC Code */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  IFSC Code <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="ifsc_code"
+                  value={accountFormData.ifsc_code}
+                  onChange={(e) => {
+                    setAccountFormData((prev) => ({
+                      ...prev,
+                      ifsc_code: e.target.value.toUpperCase(),
+                    }));
+                    // Clear error when typing
+                    if (accountFormErrors.ifsc_code) {
+                      setAccountFormErrors((prev) => ({
+                        ...prev,
+                        ifsc_code: "",
+                      }));
+                    }
+                  }}
+                  onBlur={handleAccountFieldBlur}
+                  placeholder="Enter IFSC code"
+                  maxLength={11}
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none uppercase ${
+                    accountFormErrors.ifsc_code ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {accountFormErrors.ifsc_code && (
+                  <p className="text-sm text-red-600 mt-1">{accountFormErrors.ifsc_code}</p>
+                )}
+              </div>
+
+              {/* Account Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Account Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  name="account_type"
+                  value={accountFormData.account_type}
+                  onChange={handleAccountInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+                >
+                  <option value="SAVINGS">SAVINGS</option>
+                  <option value="SALARY">SALARY</option>
+                  <option value="CURRENT">CURRENT</option>
+                </select>
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddAccountPopup(false);
+                    setAccountFormData({
+                      account_number: "",
+                      confirm_account_number: "",
+                      ifsc_code: "",
+                      account_holder_name: "",
+                      bank_name: "",
+                      branch_name: "",
+                      account_type: "SAVINGS",
+                    });
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!isAccountFormValid() || isAddingAccount}
+                  className="flex-1 px-4 py-2 bg-[#ec1b45] text-white rounded-md hover:bg-[#d91b40] transition-colors font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  {isAddingAccount ? "Adding..." : "Add Account"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

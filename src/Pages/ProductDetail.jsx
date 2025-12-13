@@ -109,30 +109,20 @@ const ProductDetail = () => {
                 setMeter(minMeter > 0 ? minMeter : 0);
               }
 
-              // Set images
+              // Match mobile app: Only use variant_images (no fallback)
+              // Mobile uses: controller.selectedVariantImages which is variantImages array from selected variant
               let images = [];
               if (firstSizeVariant.variant_images && firstSizeVariant.variant_images.length > 0) {
                 images = [...firstSizeVariant.variant_images];
-              } else if (response.data.product.additional_images && response.data.product.additional_images.length > 0) {
-                images = response.data.product.additional_images.map(img =>
-                  typeof img === 'string' ? img : (img.image || img)
-                );
-              } else if (response.data.product.main_image) {
-                images = [response.data.product.main_image];
               }
+              // Note: Mobile app doesn't fallback to additional_images or main_image
 
               setCurrentImages(images);
             }
           } else {
+            // Match mobile app: Only use variant_images (no fallback)
+            // If no variants exist, show empty array (mobile shows nothing)
             let images = [];
-            if (response.data.product.additional_images && response.data.product.additional_images.length > 0) {
-              images = response.data.product.additional_images.map(img =>
-                typeof img === 'string' ? img : (img.image || img)
-              );
-            } else if (response.data.product.main_image) {
-              images = [response.data.product.main_image];
-            }
-
             setCurrentImages(images);
           }
         }
@@ -260,16 +250,14 @@ const ProductDetail = () => {
         setMeter(minMeter > 0 ? minMeter : 0);
       }
 
+      // Match mobile app: Only use variant_images (no fallback to additional_images or main_image)
+      // Mobile uses: controller.selectedVariantImages which is variantImages array from selected variant
       let images = [];
       if (firstVariant.variant_images && firstVariant.variant_images.length > 0) {
         images = [...firstVariant.variant_images];
-      } else if (productData?.product?.additional_images && productData.product.additional_images.length > 0) {
-        images = productData.product.additional_images.map(img =>
-          typeof img === 'string' ? img : (img.image || img)
-        );
-      } else if (productData?.product?.main_image) {
-        images = [productData.product.main_image];
       }
+      // Note: Mobile app doesn't fallback to additional_images or main_image
+      // If variant_images is empty, mobile shows empty array (or just size chart if available)
 
       setCurrentImages(images);
       setMainImageIndex(0);
@@ -293,16 +281,12 @@ const ProductDetail = () => {
         setSelectedVariant(sizeVariant);
         setQuantity(1);
 
+        // Match mobile app: Only use variant_images (no fallback)
         let images = [];
         if (sizeVariant.variant_images && sizeVariant.variant_images.length > 0) {
           images = [...sizeVariant.variant_images];
-        } else if (productData?.product?.additional_images && productData.product.additional_images.length > 0) {
-          images = productData.product.additional_images.map(img =>
-            typeof img === 'string' ? img : (img.image || img)
-          );
-        } else if (productData?.product?.main_image) {
-          images = [productData.product.main_image];
         }
+        // Note: Mobile app doesn't fallback to additional_images or main_image
 
         setCurrentImages(images);
         setMainImageIndex(0);
@@ -512,7 +496,8 @@ const ProductDetail = () => {
     return [...currentImages, sizeChartImage];
   }, [currentImages, sizeChartImage]);
 
-  const mainImage = allImagesForMainDisplay[mainImageIndex] || product?.main_image;
+  // Match mobile app: Use images from array or empty string (mobile shows nothing if no images)
+  const mainImage = allImagesForMainDisplay[mainImageIndex] || '';
 
   // Pause auto-scroll when user manually selects an image
   const handleImageSelect = (index) => {
@@ -592,7 +577,7 @@ const ProductDetail = () => {
             allThumbnailImages={allThumbnailImages}
             mainImageIndex={mainImageIndex}
             setMainImageIndex={handleImageSelect}
-            productName={product.name}
+            productName={selectedColorVariant?.name || product.name}
             sizeChartImage={sizeChartImage}
             onZoomChange={setIsZooming}
           />
@@ -614,6 +599,7 @@ const ProductDetail = () => {
               discountText={discountText}
               hasOffer={hasOffer}
               selectedVariant={selectedVariant}
+              selectedColorVariant={selectedColorVariant}
             />
 
             <ProductVariants
@@ -652,6 +638,7 @@ const ProductDetail = () => {
               product={product}
               onAddToCart={handleAddToCart}
               onAddToFavorite={handleAddToFavorite}
+              isRunningMaterial={isRunningMaterial}
             />
 
             {/* Policies - Mobile only (below favorite button) */}

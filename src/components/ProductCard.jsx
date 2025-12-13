@@ -44,8 +44,19 @@ const ProductCard = ({ product, size = 'normal' }) => {
     ? images
     : (main_image ? [{ url: main_image }, ...additional_images.map(img => ({ url: typeof img === 'string' ? img : img.image || img }))] : []);
 
-  // Get product ID - prioritize product_id for API compatibility
-  const productId = product_id || product.product_id || product.id || variant_id || product.variant_id;
+  // Get product ID - MUST use product_id (not variant_id) to match mobile app
+  // Mobile app uses: productId (maps to product_id from API)
+  // API get-product-variants-by-id requires product_id, not variant_id
+  const productId = product_id || product.product_id || product.id;
+  
+  // If product_id is missing, log error (should not happen)
+  if (!productId && (variant_id || product.variant_id)) {
+    console.warn('ProductCard: Missing product_id, only variant_id available. This may cause navigation issues.', {
+      product_id,
+      variant_id,
+      product: product
+    });
+  }
 
   // Calculate original price safely
   const originalPrice = originalPriceProp || (discount > 0
@@ -56,6 +67,11 @@ const ProductCard = ({ product, size = 'normal' }) => {
   const reduxIsInWishlist = useSelector((state) =>
     selectIsInWishlist(state, productId)
   );
+
+  // Check if user is logged in (for showing favorite button)
+  const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
+  const accessToken = localStorage.getItem("accessToken");
+  const isLogin = isAuthenticated || !!accessToken;
 
   // Local state to track favorite status (from API or initial state)
   // Initialize from product prop
@@ -135,7 +151,6 @@ const ProductCard = ({ product, size = 'normal' }) => {
   const paddingClass = isCompact ? 'p-2.5' : 'p-3';
   const brandTextSize = isCompact ? 'text-xs' : 'text-sm';
   const titleTextSize = isCompact ? 'text-xs' : 'text-sm';
-  const titleMinHeight = isCompact ? 'min-h-[2rem]' : 'min-h-[2.5rem]';
   const priceTextSize = isCompact ? 'text-sm' : 'text-base';
   const discountTextSize = isCompact ? 'text-xs' : 'text-sm';
   const trendingTextSize = isCompact ? 'text-[10px]' : 'text-xs';
@@ -170,11 +185,12 @@ const ProductCard = ({ product, size = 'normal' }) => {
         {/* Running Material Badge - Bottom Right - Only show if minimum_meter exists in API response and is greater than 0 */}
         {shouldShowBadge && (
           <div className={`absolute bottom-1.5 right-1.5 bg-[#ec1b45] text-white ${trendingTextSize} font-semibold ${trendingPadding} rounded z-10`}>
-            {minMeter} Meters
+            {minMeter} meter
           </div>
         )}
 
-        {/* Wishlist Button - Always visible in top right */}
+        {/* Wishlist Button - Only visible when logged in (matches Flutter) */}
+        {isLogin && (
         <button
           onClick={handleWishlistToggle}
           disabled={isToggling}
@@ -188,6 +204,7 @@ const ProductCard = ({ product, size = 'normal' }) => {
             <CiHeart size={heartSize} className="text-gray-700" />
           )}
         </button>
+        )}
       </div>
 
       {/* Product Info */}
@@ -197,25 +214,26 @@ const ProductCard = ({ product, size = 'normal' }) => {
           {productBrand || '\u00A0'}
         </h3>
 
-        {/* Product Description/Title */}
-        <p className={`${titleTextSize} text-gray-700 line-clamp-2 ${titleMinHeight}`}>
+        {/* Product Description/Title - Single line (matches Flutter) */}
+        <p className={`${titleTextSize} text-gray-700 line-clamp-1`}>
           {productTitle}
         </p>
 
-        {/* Price Section */}
-        <div className={`flex items-center ${isCompact ? 'gap-1.5 flex-wrap' : 'gap-2'} mt-1`}>
+        {/* Price Section - Matches Flutter's price row layout */}
+        <div className={`flex items-center ${isCompact ? 'gap-1.5' : 'gap-2'} mt-1`}>
           <span className={`${priceTextSize} font-bold text-gray-900 ${isCompact ? 'whitespace-nowrap' : ''}`}>
             ₹{price?.toLocaleString('en-IN')}
           </span>
-          {has_offer && (discount > 0 || is_bogo) && (originalPrice > price || is_bogo) && (
+          {has_offer && (
             <>
-              {discount > 0 && (
+              {originalPrice > price && (
                 <span className={`${discountTextSize} text-gray-500 line-through ${isCompact ? 'whitespace-nowrap' : ''}`}>
                   ₹{originalPrice?.toLocaleString('en-IN')}
                 </span>
               )}
-              <span className={`${discountTextSize} font-semibold text-red-500 ${isCompact ? 'whitespace-nowrap' : ''}`}>
-                {is_bogo && discount_text ? discount_text : `${discount}% OFF`}
+              {/* Discount Text - Right aligned, matches Flutter (shows discountText if available, else percentage) */}
+              <span className={`${discountTextSize} font-semibold text-red-500 ml-auto ${isCompact ? 'whitespace-nowrap' : ''}`}>
+                {discount_text || (discount > 0 ? `${discount}% OFF` : '')}
               </span>
             </>
           )}

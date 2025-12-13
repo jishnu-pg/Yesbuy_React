@@ -38,6 +38,8 @@ import ExchangeOrderDetailsPage from "./Pages/ExchangeOrderDetailsPage";
 import PickupSuccessPage from "./Pages/PickupSuccessPage";
 import OrderSuccessPage from "./Pages/OrderSuccessPage";
 import PaymentCallbackPage from "./Pages/PaymentCallbackPage";
+import PaymentSuccessPage from "./Pages/PaymentSuccessPage";
+import PaymentFailPage from "./Pages/PaymentFailPage";
 import NotFoundPage from "./components/NotFoundPage";
 import HttpErrorPage from "./components/HttpErrorPage";
 
@@ -146,6 +148,14 @@ const router = createBrowserRouter([
       {
         path: "/payment-callback",
         element: <PaymentCallbackPage />,
+      },
+      {
+        path: "/payment-success",
+        element: <PaymentSuccessPage />,
+      },
+      {
+        path: "/payment-fail",
+        element: <PaymentFailPage />,
       },
     ],
     errorElement: <HttpErrorPage />,

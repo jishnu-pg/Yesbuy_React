@@ -108,6 +108,8 @@ const DiscountCategories = () => {
   const fetchDiscounts = async () => {
     try {
       setIsLoading(true);
+      
+      // Fetch carousel discounts from trending offers API
       const response = await getTrendingOffers();
       
       // Map trending offers API response to discount format
@@ -160,9 +162,6 @@ const DiscountCategories = () => {
   if (discounts.length === 0) {
     return null; // Don't show section if no discounts
   }
-
-  // Check if any discount is a Flash Sale
-  const hasFlashSale = discounts.some(d => d.offer_type === 'Flash_Sale');
   
   // Get the active discount's countdown for display
   const activeDiscount = discounts[activeSlideIndex] || discounts[0];
@@ -175,18 +174,9 @@ const DiscountCategories = () => {
 
   return (
     <div className="relative w-full">
-      {/* Top Section: Flash Sale (centered) + Countdown (below) - Outside banner */}
+      {/* Top Section: Countdown Timer */}
       <div className="flex flex-col items-center gap-3 sm:gap-4 mb-3 sm:mb-4 md:mb-5">
-        {/* Flash Sale Header - Centered - Matching Featured Deals font size */}
-        {hasFlashSale && (
-          <h1 
-            className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-center font-bold text-gray-800 w-full tracking-tight"
-          >
-            Flash <span className="text-[#ec1b45]">Sale</span>
-          </h1>
-        )}
-        
-        {/* Countdown Timer - Below heading */}
+        {/* Countdown Timer */}
         {displayCountdown && (
           <div className="flex items-center justify-center gap-1 sm:gap-2 flex-wrap">
             <span 

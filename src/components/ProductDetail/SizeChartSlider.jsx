@@ -1,3 +1,34 @@
+/**
+ * Get variant image URL using the same logic as ProductVariants component
+ * Matches mobile app: variant?.data?.firstOrNull?.thumbImages
+ */
+const getVariantImage = (variant, fallbackImage) => {
+  // Priority 1: Check thumb_images first (matches mobile app priority)
+  const thumbImages = variant?.thumb_images;
+  let variantImage = fallbackImage || '';
+  
+  if (thumbImages !== undefined && thumbImages !== null) {
+    if (typeof thumbImages === 'string' && thumbImages.trim() !== '') {
+      variantImage = thumbImages;
+      return variantImage;
+    } else if (typeof thumbImages === 'object' && Object.keys(thumbImages).length > 0) {
+      if (thumbImages.image && typeof thumbImages.image === 'string') {
+        variantImage = thumbImages.image;
+        return variantImage;
+      }
+    }
+  }
+  
+  // Priority 2: Check variant_images array (fallback if thumb_images is missing/empty)
+  if (variant?.variant_images && Array.isArray(variant.variant_images) && variant.variant_images.length > 0) {
+    variantImage = variant.variant_images[0];
+    return variantImage;
+  }
+  
+  // Final fallback
+  return fallbackImage || '';
+};
+
 const SizeChartSlider = ({
   showSizeChart,
   onClose,
@@ -17,6 +48,9 @@ const SizeChartSlider = ({
   if (!showSizeChart || !product.size_chart || product.size_chart.length === 0) {
     return null;
   }
+  
+  // Get variant image using same logic as ProductVariants
+  const variantImage = getVariantImage(selectedVariant, product?.main_image);
 
   return (
     <div 
@@ -42,19 +76,25 @@ const SizeChartSlider = ({
       {selectedVariant && (
         <div className="border-b border-gray-200 px-3 sm:px-5 py-3 sm:py-4 bg-gray-50">
           <div className="flex items-center gap-3 sm:gap-4">
-            {/* Product Image */}
+            {/* Product Image - Use same logic as ProductVariants component */}
             <div className="flex-shrink-0">
               <img
-                src={selectedVariant.variant_images?.[0] || product.main_image}
-                alt={product.name}
+                src={variantImage}
+                alt={selectedColorVariant?.name || product?.name || 'Product'}
                 className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-gray-200"
+                onError={(e) => {
+                  // Fallback to main image if variant image fails to load
+                  if (e.target.src !== product?.main_image) {
+                    e.target.src = product?.main_image || '';
+                  }
+                }}
               />
             </div>
             
             {/* Product Info */}
             <div className="flex-1 min-w-0">
               <h3 className="text-xs sm:text-sm font-semibold text-gray-800 truncate mb-1">
-                {product.name}
+                {selectedColorVariant?.name || product.name}
               </h3>
               {selectedColorVariant && (
                 <p className="text-xs text-gray-600 mb-1 sm:mb-2">

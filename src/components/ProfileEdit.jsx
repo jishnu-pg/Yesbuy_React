@@ -57,6 +57,7 @@ const ProfileEdit = ({ onProfileUpdate }) => {
   // Refs for input fields
   const usernameRef = useRef(null);
   const emailRef = useRef(null);
+  const phoneRef = useRef(null);
   const dobRef = useRef(null);
   const genderRef = useRef(null);
 
@@ -97,6 +98,30 @@ const ProfileEdit = ({ onProfileUpdate }) => {
       showError("Username must be at least 2 characters");
       setErrorField('username');
       usernameRef.current?.focus();
+      return false;
+    }
+
+    // Validate Phone Number
+    if (!form.phone || form.phone.trim() === '') {
+      showError("Phone number is required");
+      setErrorField('phone');
+      phoneRef.current?.focus();
+      return false;
+    }
+
+    // Phone number validation - must be 10 digits, starting with 6, 7, 8, or 9
+    const phoneRegex = /^(?!.*(\d)\1{9})[6-9]\d{9}$/;
+    const phoneDigits = form.phone.replace(/\D/g, ''); // Remove non-digits
+    if (phoneDigits.length !== 10) {
+      showError("Phone number must be exactly 10 digits");
+      setErrorField('phone');
+      phoneRef.current?.focus();
+      return false;
+    }
+    if (!phoneRegex.test(phoneDigits)) {
+      showError("Phone number must start with 6, 7, 8, or 9");
+      setErrorField('phone');
+      phoneRef.current?.focus();
       return false;
     }
 
@@ -156,6 +181,9 @@ const ProfileEdit = ({ onProfileUpdate }) => {
       // Create FormData
       const formData = new FormData();
       formData.append("user_name", form.username.trim());
+      // Clean phone number (remove non-digits) and append
+      const phoneDigits = form.phone.replace(/\D/g, '');
+      formData.append("phone_number", phoneDigits);
       formData.append("email", form.email.trim());
       formData.append("dob", form.dob || "");
       // Default gender to "0" (male) if not selected
@@ -199,7 +227,18 @@ const ProfileEdit = ({ onProfileUpdate }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // Special handling for phone number - only allow digits
+    if (name === 'phone') {
+      // Remove all non-digit characters
+      const numericValue = value.replace(/\D/g, '');
+      // Limit to 10 digits
+      const limitedValue = numericValue.slice(0, 10);
+      setForm((prev) => ({ ...prev, [name]: limitedValue }));
+    } else {
     setForm((prev) => ({ ...prev, [name]: value }));
+    }
+    
     // Clear error field when user starts typing
     if (errorField === name) {
       setErrorField(null);
@@ -277,6 +316,9 @@ const ProfileEdit = ({ onProfileUpdate }) => {
       switch (errorField) {
         case 'username':
           refToFocus = usernameRef.current;
+          break;
+        case 'phone':
+          refToFocus = phoneRef.current;
           break;
         case 'email':
           refToFocus = emailRef.current;
@@ -419,12 +461,21 @@ const ProfileEdit = ({ onProfileUpdate }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Mobile Number</label>
             <input
+              ref={phoneRef}
               type="text"
               name="phone"
               value={form.phone || ''}
               onChange={handleChange}
-              disabled
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-500 text-sm focus:outline-none"
+              disabled={!editMode}
+              placeholder="Enter 10-digit phone number"
+              maxLength={10}
+              className={`w-full px-3 py-2 border rounded-md text-sm transition-colors ${
+                errorField === 'phone'
+                  ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-200'
+                  : editMode 
+                    ? 'border-gray-300 focus:border-[#ec1b45] focus:outline-none bg-white' 
+                    : 'border-gray-300 bg-gray-50 text-gray-700'
+              } focus:outline-none`}
             />
           </div>
 

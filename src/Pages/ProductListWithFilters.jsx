@@ -322,7 +322,7 @@ const ProductListWithFilters = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <div>
             <h1 className="text-2xl font-bold capitalize mb-1">
-              {products.length > 0 ? products[0].category : "Category"} Products
+              {products.length > 0 ? products[0].category : "Category"}
             </h1>
             <p className="text-sm text-gray-600">
               Show {products.length} {products.length === 1 ? 'Item' : 'Items'}

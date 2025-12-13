@@ -56,7 +56,7 @@ const SubcategoryPage = () => {
       
       <div className="w-full px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-8 capitalize">
-          {categoryName || "Category"} Subcategories
+          {categoryName || "Category"}
         </h1>
 
         {isLoading ? (

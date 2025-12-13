@@ -293,16 +293,43 @@ export const initializeEasebuzzPayment = async (
 export const isPaymentSuccess = (response) => {
   if (!response) return false;
 
-  const status = response.status || response.payment_status || '';
-  const statusLower = status.toLowerCase();
+  // Easebuzz can return status in various formats
+  const status = 
+    response.status || 
+    response.payment_status || 
+    response.paymentStatus ||
+    response.paymentresponse?.status ||
+    '';
+  
+  const statusLower = status.toLowerCase().trim();
 
-  // Check for success status values
-  return (
-    statusLower === 'payment_successfull' ||
-    statusLower === 'paymentsuccessfull' ||
-    statusLower === 'success' ||
-    statusLower === 'successful'
-  );
+  // Check for success status values (based on Easebuzz documentation)
+  const successStatuses = [
+    'payment_successfull',
+    'paymentsuccessfull',
+    'payment_successful',
+    'payment successful',
+    'success',
+    'successful',
+    '1', // Some APIs return 1 for success
+    'true',
+  ];
+
+  // Check if status matches any success value
+  if (successStatuses.includes(statusLower)) {
+    return true;
+  }
+
+  // Also check if there's no error and status is not failure
+  const hasError = response.error || response.error_Message || response.errorMessage;
+  const isFailure = statusLower === 'failure' || statusLower === 'failed' || statusLower === '0';
+  
+  // If no error and not explicitly failed, and we have a transaction ID, consider it success
+  if (!hasError && !isFailure && getTransactionId(response)) {
+    return true;
+  }
+
+  return false;
 };
 
 /**

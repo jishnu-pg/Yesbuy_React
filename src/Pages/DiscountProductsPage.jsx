@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getDiscountedProductsList } from "../services/api/discount";
+import { getDiscountedProductsList, getAllDiscounts } from "../services/api/discount";
 import ProductCard from "../components/ProductCard";
 import LoaderSpinner from "../components/LoaderSpinner";
 import { showError } from "../utils/toast";
@@ -12,12 +12,89 @@ const DiscountProductsPage = () => {
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [discountName, setDiscountName] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [remainingTime, setRemainingTime] = useState({ hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
     if (discountId) {
       fetchDiscountedProducts();
+      fetchDiscountInfo();
     }
   }, [discountId]);
+
+  // Calculate time remaining from end_date (matches Flutter)
+  const calculateTimeRemaining = (endDateString) => {
+    if (!endDateString) return { hours: 0, minutes: 0, seconds: 0 };
+    
+    try {
+      // Parse date format: "31-12-2025 10:25:00" (DD-MM-YYYY HH:mm:ss)
+      const [datePart, timePart] = endDateString.split(' ');
+      const [day, month, year] = datePart.split('-').map(Number);
+      const [hours, minutes, seconds] = timePart.split(':').map(Number);
+      
+      // Create end date (month is 0-indexed in JavaScript Date)
+      const endDateObj = new Date(year, month - 1, day, hours, minutes, seconds);
+      const now = new Date();
+      
+      // Calculate difference in milliseconds
+      const diff = endDateObj - now;
+      
+      // If time has passed, return zeros
+      if (diff <= 0) {
+        return { hours: 0, minutes: 0, seconds: 0 };
+      }
+      
+      // Convert to hours, minutes, seconds (matches Flutter: inHours, remainder(60))
+      const totalSeconds = Math.floor(diff / 1000);
+      const totalMinutes = Math.floor(totalSeconds / 60);
+      const totalHours = Math.floor(totalMinutes / 60);
+      
+      return {
+        hours: totalHours, // Total hours (can be > 24, matches Flutter's inHours)
+        minutes: totalMinutes % 60, // Minutes remainder (0-59, matches Flutter's remainder(60))
+        seconds: totalSeconds % 60, // Seconds remainder (0-59, matches Flutter's remainder(60))
+      };
+    } catch (error) {
+      console.error("Error parsing end date:", error);
+      return { hours: 0, minutes: 0, seconds: 0 };
+    }
+  };
+
+  // Update countdown timer every second (matches Flutter)
+  useEffect(() => {
+    if (!endDate) return;
+
+    // Calculate initial countdown
+    const initialTime = calculateTimeRemaining(endDate);
+    setRemainingTime(initialTime);
+
+    // Update countdown every second - recalculate from actual end_date (matches Flutter)
+    const interval = setInterval(() => {
+      const recalculated = calculateTimeRemaining(endDate);
+      setRemainingTime(recalculated);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [endDate]);
+
+  const fetchDiscountInfo = async () => {
+    try {
+      const response = await getAllDiscounts();
+      if (response.status && response.results) {
+        const discount = response.results.find(d => d.id?.toString() === discountId);
+        if (discount) {
+          if (discount.name) {
+            setDiscountName(discount.name);
+          }
+          if (discount.end_date) {
+            setEndDate(discount.end_date);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch discount info:", error);
+    }
+  };
 
   const fetchDiscountedProducts = async () => {
     try {
@@ -104,11 +181,41 @@ const DiscountProductsPage = () => {
           <span className="text-sm font-medium">Back to Home</span>
         </button>
 
-        {/* Header */}
+        {/* Header with Countdown (matches Flutter) */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+          <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
             {discountName || "Discounted Products"}
           </h1>
+            
+            {/* Countdown Timer (matches Flutter's OfferDetailCountDownComponent) */}
+            {endDate && remainingTime.hours >= 0 && remainingTime.minutes >= 0 && remainingTime.seconds >= 0 && (
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center gap-1">
+                  {/* Hours */}
+                  <div className="bg-[#FFEFF2] rounded px-1.5 sm:px-2 py-1 min-w-[24px] sm:min-w-[28px] h-6 sm:h-7 flex items-center justify-center">
+                    <span className="text-xs sm:text-sm font-bold text-[#ec1b45]">
+                      {String(remainingTime.hours).padStart(2, '0')}
+                    </span>
+                  </div>
+                  <span className="text-sm font-semibold text-gray-800 px-0.5 sm:px-1">:</span>
+                  {/* Minutes */}
+                  <div className="bg-[#FFEFF2] rounded px-1.5 sm:px-2 py-1 min-w-[24px] sm:min-w-[28px] h-6 sm:h-7 flex items-center justify-center">
+                    <span className="text-xs sm:text-sm font-bold text-[#ec1b45]">
+                      {String(remainingTime.minutes).padStart(2, '0')}
+                    </span>
+                  </div>
+                  <span className="text-sm font-semibold text-gray-800 px-0.5 sm:px-1">:</span>
+                  {/* Seconds */}
+                  <div className="bg-[#FFEFF2] rounded px-1.5 sm:px-2 py-1 min-w-[24px] sm:min-w-[28px] h-6 sm:h-7 flex items-center justify-center">
+                    <span className="text-xs sm:text-sm font-bold text-[#ec1b45]">
+                      {String(remainingTime.seconds).padStart(2, '0')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
           <p className="text-gray-600 text-sm sm:text-base">
             {products.length > 0 
               ? `${products.length} product${products.length !== 1 ? 's' : ''} found`

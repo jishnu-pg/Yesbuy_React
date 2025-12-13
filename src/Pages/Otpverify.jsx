@@ -18,6 +18,16 @@ const OtpVerify = () => {
   const flowType = localStorage.getItem("flowType"); // "login" or "registration"
   const phone = localStorage.getItem("tempPhone");
   const username = localStorage.getItem("tempUsername");
+  const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
+  const accessToken = localStorage.getItem("accessToken");
+
+  // Redirect if already authenticated (prevent accessing OTP page after login)
+  useEffect(() => {
+    if (isAuthenticated || accessToken) {
+      // User is already logged in, redirect to home
+      navigate("/home", { replace: true });
+    }
+  }, [isAuthenticated, accessToken, navigate]);
 
   // Countdown timer effect
   useEffect(() => {
@@ -72,14 +82,32 @@ const OtpVerify = () => {
       if (flowType === "registration") {
         // Registration flow: Use entered OTP as otp_token
         response = await verifyRegistrationOTP(phone, enteredOtp);
+      } else {
+        // Login flow: Use entered OTP as otp_token
+        response = await verifyLoginOTP(phone, enteredOtp);
+      }
+
+      // Check if response indicates an error (status >= 400 or status === false)
+      // API returns {"status":400,"message":"Invalid OTP.","data":""} even with HTTP 200
+      if (!response || (typeof response.status === 'number' && response.status >= 400) || response.status === false) {
+        // Extract error message from response - API provides message field
+        const errorMsg = response?.message || extractErrorMessage(response) || "Invalid OTP. Please try again.";
+        throw new Error(errorMsg);
+      }
+
+      // Validate response has required access token before proceeding
+      if (!response.access) {
+        throw new Error("Invalid response from server. Please try again.");
+      }
+
+      // Dispatch success action based on flow type
+      if (flowType === "registration") {
         dispatch(registerSuccess({ 
           access: response.access, 
           refresh: response.refresh, 
           user: response.data 
         }));
       } else {
-        // Login flow: Use entered OTP as otp_token
-        response = await verifyLoginOTP(phone, enteredOtp);
         dispatch(loginSuccess({ 
           access: response.access, 
           refresh: response.refresh, 
@@ -100,11 +128,54 @@ const OtpVerify = () => {
       showSuccess(successMessage);
 
       dispatch(setLoading(false));
-      navigate("/home");
+      
+      // Flutter uses Get.offAllNamed() which clears entire navigation stack
+      // React Router equivalent: replace current entry and push multiple home entries
+      // This ensures back button doesn't go to login/OTP pages even with multiple clicks
+      
+      // Step 1: Replace OTP page with home (removes OTP from history)
+      navigate("/home", { replace: true });
+      
+      // Step 2: Push multiple home entries to create a buffer
+      // This makes history: [..., login, home, home, home, home]
+      // When user clicks back multiple times, they stay on home
+      // The App component has a persistent listener as additional safety net
+      setTimeout(() => {
+        // Push multiple home entries to create a buffer against multiple back clicks
+        for (let i = 0; i < 5; i++) {
+          window.history.pushState(null, '', '/home');
+        }
+      }, 0);
     } catch (error) {
       dispatch(setLoading(false));
-      // Error toast is already shown by http.js
-      dispatch(setError(error.message));
+      
+      // Extract error message from API response
+      // Priority: error.message (from http.js) > error.response.message > default message
+      let errorMessage = "Invalid OTP. Please try again.";
+      
+      if (error?.message) {
+        // Use the error message from http.js (which extracts from API response)
+        // http.js extracts from response.message when status >= 400
+        errorMessage = error.message;
+      } else if (error?.response) {
+        // Fallback: try to extract from error.response if available
+        const responseData = error.response;
+        // API response format: {"status":400,"message":"Invalid OTP.","data":""}
+        if (responseData?.message) {
+          errorMessage = responseData.message;
+        } else if (responseData?.error) {
+          errorMessage = typeof responseData.error === 'string' 
+            ? responseData.error 
+            : responseData.error?.message || errorMessage;
+        } else if (responseData?.detail) {
+          errorMessage = responseData.detail;
+        }
+      }
+      
+      // Show error toast with API response message (e.g., "Invalid OTP.")
+      showError(errorMessage);
+      dispatch(setError(errorMessage));
+      // DO NOT navigate - stay on OTP page so user can retry
     }
   };
 

@@ -23,9 +23,12 @@ const LimitedDiscountProducts = () => {
       if (response.results && response.results.length > 0) {
         // Map API response to ProductCard format
         const mappedProducts = response.results.map((product) => ({
-          id: product.product_id || product.variant_id,
+          // MUST use product_id (not variant_id) - matches mobile app behavior
+          // Mobile app uses: productId (maps to product_id from API)
+          // API get-product-variants-by-id requires product_id
+          id: product.product_id, // Remove variant_id fallback
           product_id: product.product_id,
-          variant_id: product.variant_id,
+          variant_id: product.variant_id, // Keep for reference but don't use for navigation
           title: product.name,
           name: product.name,
           price: product.discount_price?.has_offer
@@ -54,6 +57,7 @@ const LimitedDiscountProducts = () => {
           slug: product.slug,
           isFavourite: product.is_favourite,
           is_favourite: product.is_favourite,
+          is_trending: true, // All products from limited list API show trending badge (matches Flutter)
           size_type: product.size_type,
           minimum_meter: product.minimum_meter,
         }));
@@ -74,9 +78,6 @@ const LimitedDiscountProducts = () => {
   if (isLoading) {
     return (
       <div className="relative">
-        <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-center font-bold text-gray-800 mb-3 sm:mb-4 tracking-tight">
-          Featured <span className="text-[#ec1b45]">Deals</span>
-        </h1>
         <div className="py-8">
           <LoaderSpinner label="Loading featured deals..." />
         </div>
@@ -90,9 +91,6 @@ const LimitedDiscountProducts = () => {
 
   return (
     <div className="relative">
-      <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-center font-bold text-gray-800 mb-2 sm:mb-4 md:mb-5 tracking-tight">
-        Featured <span className="text-[#ec1b45]">Deals</span>
-      </h1>
       <div className="mt-1 sm:mt-3">
         <Carousel
           items={data}

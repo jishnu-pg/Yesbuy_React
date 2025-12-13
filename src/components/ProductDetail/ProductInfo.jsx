@@ -6,8 +6,12 @@ const ProductInfo = ({
   isBogo, 
   discountText, 
   hasOffer,
-  selectedVariant 
+  selectedVariant,
+  selectedColorVariant 
 }) => {
+  // Use variant name if available, otherwise fall back to product name
+  const displayName = selectedColorVariant?.name || product.name;
+  
   return (
     <div className="w-full lg:flex-1 lg:max-w-lg lg:pl-8">
       <div className="sticky top-4 space-y-4 sm:space-y-6">
@@ -18,9 +22,9 @@ const ProductInfo = ({
           </p>
         )}
         
-        {/* Product Name */}
+        {/* Product Name - Shows variant name if available */}
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
-          {product.name}
+          {displayName}
         </h2>
         
         {/* Price */}
