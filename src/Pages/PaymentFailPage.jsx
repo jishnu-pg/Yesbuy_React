@@ -14,7 +14,7 @@ const PaymentFailPage = () => {
   useEffect(() => {
     const handlePaymentFailure = async () => {
       try {
-        // Get payment response from URL parameters
+        // Get payment response from URL parameters (GET parameters from redirection)
         const paymentResponse = {};
         
         // Extract all query parameters
@@ -74,4 +74,3 @@ const PaymentFailPage = () => {
 };
 
 export default PaymentFailPage;
-

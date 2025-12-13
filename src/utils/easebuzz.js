@@ -11,16 +11,19 @@ const loadEasebuzzSDK = (sdkUrl = null) => {
   return new Promise((resolve, reject) => {
     // Check if SDK is already loaded
     if (window.Easebuzz) {
+      console.log('Easebuzz: SDK already loaded');
       resolve();
       return;
     }
 
     // Check if script is already being loaded
-    const existingScript = document.querySelector('script[src*="easypay"]');
+    const existingScript = document.querySelector('script[src*="easepay"], script[src*="easebuzz"]');
     if (existingScript) {
+      console.log('Easebuzz: Found existing script tag', existingScript.src);
       // Wait for script to load
       const checkInterval = setInterval(() => {
-        if (window.Easebuzz) {
+        if (window.Easebuzz && typeof window.Easebuzz === 'function') {
+          console.log('Easebuzz: Existing script loaded SDK successfully');
           clearInterval(checkInterval);
           resolve();
         }
@@ -30,6 +33,7 @@ const loadEasebuzzSDK = (sdkUrl = null) => {
       setTimeout(() => {
         clearInterval(checkInterval);
         if (!window.Easebuzz) {
+          console.error('Easebuzz: SDK loading timeout for existing script');
           reject(new Error('Easebuzz SDK loading timeout'));
         }
       }, 10000);
@@ -39,10 +43,10 @@ const loadEasebuzzSDK = (sdkUrl = null) => {
     // Load Easebuzz SDK script
     // Note: The SDK URL might vary - check with Easebuzz documentation
     // Common SDK URLs:
-    // - https://easypay.easebuzz.in/easepay/easepay.js
+    // - https://ebz-static.s3.ap-south-1.amazonaws.com/easecheckout/v2.0.0/easebuzz-checkout-v2.min.js
     // - https://pay.easebuzz.in/easepay/easepay.js
     // - https://testpay.easebuzz.in/easepay/easepay.js
-    const defaultSdkUrl = 'https://easypay.easebuzz.in/easepay/easepay.js';
+    const defaultSdkUrl = 'https://ebz-static.s3.ap-south-1.amazonaws.com/easecheckout/v2.0.0/easebuzz-checkout-v2.min.js';
     const finalSdkUrl = sdkUrl || defaultSdkUrl;
     
     console.log('Loading Easebuzz SDK from:', finalSdkUrl);
@@ -54,19 +58,38 @@ const loadEasebuzzSDK = (sdkUrl = null) => {
       console.log('Easebuzz SDK script loaded, waiting for initialization...');
       // Wait a bit for Easebuzz to initialize - try multiple times
       let attempts = 0;
-      const maxAttempts = 10;
+      const maxAttempts = 25; // Increase attempts to give more time
       const checkInterval = setInterval(() => {
         attempts++;
-        if (window.Easebuzz) {
-          console.log('Easebuzz SDK initialized successfully');
+        // Check multiple possible locations for the Easebuzz object
+        const easebuzzObj = window.Easebuzz || window.easebuzz || window.EasebuzzCheckout;
+        
+        // Log what we have available for debugging
+        if (attempts === 1 || attempts % 5 === 0) {
+          console.log('Easebuzz: Checking for SDK availability (attempt ' + attempts + ')', {
+            hasWindowEasebuzz: !!window.Easebuzz,
+            windowEasebuzzType: typeof window.Easebuzz,
+            hasEasebuzzObj: !!easebuzzObj,
+            easebuzzObjType: typeof easebuzzObj,
+            hasInitMethod: easebuzzObj && typeof easebuzzObj.init === 'function'
+          });
+        }
+        
+        if (easebuzzObj && (typeof easebuzzObj === 'function' || typeof easebuzzObj.init === 'function')) {
+          console.log('Easebuzz SDK initialized successfully', { easebuzzObjType: typeof easebuzzObj, easebuzzObjName: Object.keys(window).find(key => window[key] === easebuzzObj) });
+          // Make sure window.Easebuzz is set correctly
+          if (!window.Easebuzz) {
+            window.Easebuzz = easebuzzObj;
+          }
           clearInterval(checkInterval);
           resolve();
         } else if (attempts >= maxAttempts) {
           clearInterval(checkInterval);
-          console.error('Easebuzz SDK loaded but window.Easebuzz not available after', maxAttempts, 'attempts');
-          reject(new Error('Easebuzz SDK failed to initialize - window.Easebuzz not found'));
+          console.error('Easebuzz SDK loaded but window.Easebuzz not available or not a function after', maxAttempts, 'attempts');
+          console.log('Available window objects:', Object.keys(window).filter(key => key.toLowerCase().includes('ease')));
+          reject(new Error('Easebuzz SDK failed to initialize - window.Easebuzz not found or not a function'));
         }
-      }, 200);
+      }, 200); // Check more frequently
     };
     script.onerror = (error) => {
       console.error('Failed to load Easebuzz SDK script:', error);
@@ -102,7 +125,7 @@ export const initializeEasebuzzPayment = async (
     return;
   }
 
-  console.log('Initializing Easebuzz payment with data:', {
+  console.log('Initializing Easebuzz payment with redirection approach (like Django app)', {
     hasAccessKey: !!paymentData.access_key,
     hasEnv: !!paymentData.env,
     hasOrderId: !!paymentData.order_id,
@@ -110,175 +133,34 @@ export const initializeEasebuzzPayment = async (
   });
 
   try {
-    // Get SDK URL from payment data or use default
-    const sdkUrl = paymentData?.sdk_url || null;
-    
-    // Try to load Easebuzz SDK first
-    let sdkLoaded = false;
-    const sdkUrlsToTry = sdkUrl 
-      ? [sdkUrl] 
-      : [
-          'https://easypay.easebuzz.in/easepay/easepay.js',
-          'https://pay.easebuzz.in/easepay/easepay.js',
-          'https://testpay.easebuzz.in/easepay/easepay.js'
-        ];
-    
-    for (const urlToTry of sdkUrlsToTry) {
-      try {
-        console.log('Attempting to load Easebuzz SDK from:', urlToTry);
-        await loadEasebuzzSDK(urlToTry);
-        sdkLoaded = !!window.Easebuzz;
-        
-        if (sdkLoaded) {
-          console.log('Easebuzz SDK loaded successfully from:', urlToTry);
-          break; // Success, exit loop
-        } else {
-          console.warn('Easebuzz SDK script loaded but window.Easebuzz is not available');
-        }
-      } catch (error) {
-        console.error('Easebuzz SDK loading error from', urlToTry, ':', error.message);
-        // Continue to next URL
-        continue;
-      }
-    }
-    
-    if (!sdkLoaded) {
-      console.error('All Easebuzz SDK URLs failed to load');
-    }
+    // Use redirection approach consistently (like Django app)
+    // Store payment data in sessionStorage for callback page
+    sessionStorage.setItem('easebuzz_payment_data', JSON.stringify({
+      order_id: paymentData.order_id,
+      amount: paymentData.amount,
+      access_key: paymentData.access_key,
+      env: paymentData.env,
+    }));
 
-    // Easebuzz primarily uses SDK-based integration
-    // If form submission is needed, the backend should provide the correct payment URL
-    // Common Easebuzz payment URLs (verify with your Easebuzz account):
-    // Test: https://testpay.easebuzz.in/ or https://easypay.easebuzz.in/
-    // Production: https://pay.easebuzz.in/ or https://easypay.easebuzz.in/
-    const paymentUrl = paymentData.payment_url || 
-      (paymentData.env === 'production' 
-        ? 'https://pay.easebuzz.in/'
-        : 'https://testpay.easebuzz.in/');
-
-    // Prepare payment parameters
-    // IMPORTANT: Use the exact parameter names that your Easebuzz account expects
-    // The backend should provide all necessary parameters including hash if required
-    const easebuzzParams = {
-      // Try both 'key' and 'access_key' - use what backend provides
-      ...(paymentData.access_key && { key: paymentData.access_key }),
-      ...(paymentData.access_key && { access_key: paymentData.access_key }),
-      amount: paymentData.amount?.toString() || paymentData.amount,
-      currency: paymentData.currency || 'INR',
-      name: paymentData.customer_name || paymentData.name,
-      email: paymentData.customer_email || paymentData.email || '',
-      phone: paymentData.mobile || paymentData.phone || paymentData.customer_phone,
-      txnid: paymentData.order_id?.toString() || paymentData.txnid || paymentData.order_id,
-      productinfo: paymentData.productinfo || `Order ${paymentData.order_id}`,
-      surl: paymentData.surl || paymentData.redirect_url || window.location.origin + '/payment-callback',
-      furl: paymentData.furl || paymentData.cancel_url || window.location.origin + '/payment-callback',
-    };
-
-    // Add hash if provided by backend (required for security)
-    if (paymentData.hash) {
-      easebuzzParams.hash = paymentData.hash;
-    } else {
-      console.warn('WARNING: Hash is missing from payment data. Easebuzz may reject the payment.');
-      // Don't add empty hash - let backend handle it
-    }
-
-    // Add any additional parameters from backend
-    if (paymentData.additional_params) {
-      Object.assign(easebuzzParams, paymentData.additional_params);
-    }
-
-    // Log parameters for debugging (remove in production)
-    console.log('Easebuzz Payment Parameters:', { ...easebuzzParams, key: '***', access_key: '***', hash: paymentData.hash ? '***' : 'MISSING' });
-
-    // Easebuzz primarily uses SDK-based integration
-    // Try SDK approach first - this is the recommended method
-    if (sdkLoaded && window.Easebuzz) {
-      try {
-        // Easebuzz SDK initialization
-        // The SDK constructor typically takes: access_key and environment mode
-        const easebuzzMode = paymentData.env === 'production' ? 'PROD' : 'TEST';
-        const easebuzz = new window.Easebuzz(paymentData.access_key, easebuzzMode);
-
-        // Prepare SDK parameters
-        // Note: Easebuzz SDK might use different parameter names - adjust based on actual SDK
-        const sdkParams = {
-          key: paymentData.access_key,
-          amount: paymentData.amount.toString(),
-          currency: paymentData.currency || 'INR',
-          name: paymentData.customer_name,
-          email: paymentData.customer_email || '',
-          phone: paymentData.mobile,
-          txnid: paymentData.order_id.toString(),
-          productinfo: paymentData.productinfo || `Order ${paymentData.order_id}`,
-          surl: paymentData.surl || window.location.origin + '/payment-callback',
-          furl: paymentData.furl || window.location.origin + '/payment-callback',
-        };
-
-        // Add hash if provided (required for security)
-        if (paymentData.hash) {
-          sdkParams.hash = paymentData.hash;
-        }
-
-        // Initialize payment with SDK
-        easebuzz.init({
-          ...sdkParams,
-          onSuccess: (response) => {
-            console.log('Easebuzz Payment Success:', response);
-            onSuccess(response);
-          },
-          onFailure: (error) => {
-            console.error('Easebuzz Payment Failure:', error);
-            onFailure(error);
-          },
-        });
-        return; // SDK approach used, exit
-      } catch (sdkError) {
-        console.error('SDK initialization failed:', sdkError);
-        // If SDK fails, we need to inform the user
-        onFailure(new Error('Failed to initialize payment gateway. Please try again or contact support.'));
-        return;
-      }
-    }
-
-    // If SDK is not available, use access_key redirect approach
-    // Based on backend implementation: backend calls initiateLink API and returns access_key
-    // Frontend should redirect to: https://pay.easebuzz.in/pay/{access_key}
-    if (!sdkLoaded) {
-      console.warn('Easebuzz SDK not available, using access_key redirect approach');
+    // Determine correct payment URL based on environment
+    const baseUrl = paymentData.env === 'production' || paymentData.env === 'prod'
+      ? 'https://pay.easebuzz.in'
+      : 'https://testpay.easebuzz.in';
       
-      // Check if access_key is provided (this is what backend returns from initiateLink API)
-      if (!paymentData.access_key) {
-        console.error('Access key is missing - cannot proceed with payment');
-        onFailure(new Error('Payment gateway configuration error: Access key is missing. Please contact support.'));
-        return;
-      }
+    console.log('Easebuzz: Using redirection URL', { baseUrl, env: paymentData.env });
+    
+    const paymentRedirectUrl = `${baseUrl}/pay/${paymentData.access_key}`;
+    
+    console.log('Easebuzz: Constructed redirection URL', { paymentRedirectUrl, baseUrl, accessKey: paymentData.access_key });
 
-      // Store payment data in sessionStorage for callback page
-      sessionStorage.setItem('easebuzz_payment_data', JSON.stringify({
-        order_id: paymentData.order_id,
-        amount: paymentData.amount,
-        access_key: paymentData.access_key,
-        env: paymentData.env,
-      }));
+    console.log('Redirecting to Easebuzz payment page (redirection approach):', paymentRedirectUrl);
 
-      // Determine correct payment URL based on environment
-      // Backend returns access_key from initiateLink API
-      // Frontend redirects to: https://pay.easebuzz.in/pay/{access_key}
-      const baseUrl = paymentData.env === 'production' || paymentData.env === 'prod'
-        ? 'https://pay.easebuzz.in'
-        : 'https://testpay.easebuzz.in';
-      
-      const paymentRedirectUrl = `${baseUrl}/pay/${paymentData.access_key}`;
-
-      console.log('Redirecting to Easebuzz payment page:', paymentRedirectUrl);
-
-      // Redirect to Easebuzz payment page
-      window.location.href = paymentRedirectUrl;
-      
-      // Note: After redirect, user will complete payment on Easebuzz
-      // Payment response will come via redirect to callback URL
-      return;
-    }
+    // Redirect to Easebuzz payment page
+    window.location.href = paymentRedirectUrl;
+    
+    // Note: After redirect, user will complete payment on Easebuzz
+    // Payment response will come via redirect to callback URL
+    return;
   } catch (error) {
     console.error('Error initializing Easebuzz payment:', error);
     onFailure(error);

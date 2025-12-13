@@ -15,7 +15,7 @@ const PaymentSuccessPage = () => {
   useEffect(() => {
     const handlePaymentSuccess = async () => {
       try {
-        // Get payment response from URL parameters
+        // Get payment response from URL parameters (GET parameters from redirection)
         const paymentResponse = {};
         
         // Extract all query parameters
@@ -121,4 +121,3 @@ const PaymentSuccessPage = () => {
 };
 
 export default PaymentSuccessPage;
-

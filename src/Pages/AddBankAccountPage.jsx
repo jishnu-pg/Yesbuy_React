@@ -15,6 +15,7 @@ const AddBankAccountPage = () => {
     account_holder_name: "",
     bank_name: "",
     branch_name: "",
+    account_type: "SAVINGS", // Add account_type with default value
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
@@ -26,7 +27,6 @@ const AddBankAccountPage = () => {
       [name]: value,
     }));
   };
-
 
   const validateForm = () => {
     if (!formData.account_number) {
@@ -75,6 +75,7 @@ const AddBankAccountPage = () => {
       submitFormData.append('ifsc_code', formData.ifsc_code.toUpperCase());
       submitFormData.append('account_holder_name', formData.account_holder_name);
       submitFormData.append('bank_name', formData.bank_name);
+      submitFormData.append('account_type', formData.account_type); // Add account_type to form data
       if (formData.branch_name) {
         submitFormData.append('branch_name', formData.branch_name);
       }
@@ -214,6 +215,23 @@ const AddBankAccountPage = () => {
             />
           </div>
 
+          {/* Account Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Account Type <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="account_type"
+              value={formData.account_type}
+              onChange={handleInputChange}
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+            >
+              <option value="SAVINGS">SAVINGS</option>
+              <option value="CURRENT">CURRENT</option>
+              <option value="OTHER">OTHER</option>
+            </select>
+          </div>
+
           {/* Branch Name (Optional) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -259,6 +277,7 @@ const AddBankAccountPage = () => {
                 setShowSuccessPopup(false);
                 navigate(`/order/${orderId}/return/refund`, {
                   state: location.state,
+                  replace: true // Prevent back navigation
                 });
               }}
               className="mt-6 w-full bg-[#ec1b45] text-white py-3 px-6 rounded-md hover:bg-[#d91b40] transition-colors font-semibold"

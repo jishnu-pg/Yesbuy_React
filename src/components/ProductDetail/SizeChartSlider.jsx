@@ -71,86 +71,23 @@ const SizeChartSlider = ({
           </svg>
         </button>
       </div>
-
-      {/* Product Variant Info */}
-      {selectedVariant && (
-        <div className="border-b border-gray-200 px-3 sm:px-5 py-3 sm:py-4 bg-gray-50">
-          <div className="flex items-center gap-3 sm:gap-4">
-            {/* Product Image - Use same logic as ProductVariants component */}
-            <div className="flex-shrink-0">
-              <img
-                src={variantImage}
-                alt={selectedColorVariant?.name || product?.name || 'Product'}
-                className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-gray-200"
-                onError={(e) => {
-                  // Fallback to main image if variant image fails to load
-                  if (e.target.src !== product?.main_image) {
-                    e.target.src = product?.main_image || '';
-                  }
-                }}
-              />
-            </div>
-            
-            {/* Product Info */}
-            <div className="flex-1 min-w-0">
-              <h3 className="text-xs sm:text-sm font-semibold text-gray-800 truncate mb-1">
-                {selectedColorVariant?.name || product.name}
-              </h3>
-              {selectedColorVariant && (
-                <p className="text-xs text-gray-600 mb-1 sm:mb-2">
-                  Color: {selectedVariant?.color || selectedColorVariant.name}
-                </p>
-              )}
-              {!isRunningMaterial && selectedSize && (
-                <p className="text-xs text-gray-600 mb-1 sm:mb-2">
-                  Size: {selectedSize}
-                </p>
-              )}
-              {isRunningMaterial && meter && (
-                <p className="text-xs text-gray-600 mb-1 sm:mb-2">
-                  Meter: {meter}
-                </p>
-              )}
-              
-              {/* Price */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-base sm:text-lg font-bold text-[#ec1b45]">
-                  ₹{currentPrice?.toLocaleString('en-IN')}
-                </span>
-                {hasOffer && (discountPercentage > 0 || isBogo) && (
-                  <>
-                    {discountPercentage > 0 && (
-                      <span className="text-xs sm:text-sm text-gray-500 line-through">
-                        ₹{originalPrice?.toLocaleString('en-IN')}
-                      </span>
-                    )}
-                    <span className="text-xs text-[#ec1b45] font-semibold px-1.5 sm:px-2 py-0.5 rounded">
-                      {isBogo && discountText ? discountText : `${discountPercentage}% OFF`}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       
       {/* Size Chart Content */}
-      <div className="overflow-y-auto h-[calc(100vh-140px)] sm:h-[calc(100vh-180px)] p-3 sm:p-5">
-        {product.size_chart.map((chart, index) => (
-          <div key={index} className="h-full flex flex-col">
-            {chart.measurement && (
-              <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3 font-medium flex-shrink-0">Measurement: {chart.measurement}</p>
+      <div className="overflow-y-auto h-full p-3 sm:p-5">
+        {product.size_chart.length > 0 && (
+          <div className="h-full flex flex-col">
+            {product.size_chart[0].measurement && (
+              <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3 font-medium flex-shrink-0">Measurement: {product.size_chart[0].measurement}</p>
             )}
             <div className="flex-1 min-h-0 flex items-center justify-center">
               <img
-                src={chart.measurement_image}
-                alt={`Size Chart - ${chart.measurement || 'Standard'}`}
+                src={product.size_chart[0].measurement_image}
+                alt={`Size Chart - ${product.size_chart[0].measurement || 'Standard'}`}
                 className="w-full h-full object-contain rounded-lg"
               />
             </div>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

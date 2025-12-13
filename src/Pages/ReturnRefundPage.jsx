@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { listAddresses } from "../services/api/address";
+import { listAddresses, addAddress } from "../services/api/address";
 import { listBankAccounts, addBankAccount } from "../services/api/bankAccount";
 import { returnOrder, getOrderDetails } from "../services/api/order";
 import { showError, showSuccess } from "../utils/toast";
@@ -26,6 +26,22 @@ const ReturnRefundPage = () => {
   const [showBankRefundPopup, setShowBankRefundPopup] = useState(false);
   const [showDirectStorePopup, setShowDirectStorePopup] = useState(false);
   const [showAddAccountPopup, setShowAddAccountPopup] = useState(false);
+  const [showAddAddressPopup, setShowAddAddressPopup] = useState(false);
+  const [isAddingAddress, setIsAddingAddress] = useState(false);
+  const [addressFormData, setAddressFormData] = useState({
+    phone_number: "",
+    landmark: "",
+    location_address: "",
+    address: "",
+    city: "",
+    state: "",
+    pincode: "",
+    country: "",
+    tag: "Home",
+    latitude: "1",
+    longitude: "1",
+    is_default: true,
+  });
   const [isAddingAccount, setIsAddingAccount] = useState(false);
   const [accountFormData, setAccountFormData] = useState({
     account_number: "",
@@ -46,9 +62,21 @@ const ReturnRefundPage = () => {
     account_type: "",
   });
 
+  // Prevent back navigation to return pages after successful submission
+  useEffect(() => {
+    // This effect runs once when component mounts
+    // We'll use it to replace the previous history entry if we came from a return-related page
+    
+    // Check if we have state indicating we came from a return flow
+    if (location.state?.fromReturnFlow) {
+      // Replace the current history entry to prevent back navigation
+      window.history.replaceState(null, '', window.location.href);
+    }
+  }, [location.state]);
+
   useEffect(() => {
     fetchData();
-    
+
     // If orderDetail is not in location.state, fetch it
     if (!orderDetail && orderId) {
       const fetchOrderDetails = async () => {
@@ -72,7 +100,7 @@ const ReturnRefundPage = () => {
       const isBankPayment = paymentMethod?.toLowerCase() === "bank";
       const isDirectStoreReturn = returnMethod === "Return Direct From Store";
       const isBankAccMandatory = !isBankPayment && !isDirectStoreReturn;
-      
+
       // Only auto-select if bank account is mandatory and none is selected
       if (isBankAccMandatory && !selectedBankAccountId) {
         setSelectedBankAccountId(bankAccounts[0].id);
@@ -86,7 +114,7 @@ const ReturnRefundPage = () => {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      
+
       // Fetch addresses
       const addressesResponse = await listAddresses();
       if (addressesResponse.results) {
@@ -209,17 +237,17 @@ const ReturnRefundPage = () => {
   const submitReturn = async () => {
     try {
       setIsSubmitting(true);
-      
+
       // Validate additional comment is not empty (required in Flutter)
       if (!additionalComment || additionalComment.trim() === "") {
         showError("Please enter a comment before continuing");
         setIsSubmitting(false);
         return;
       }
-      
+
       // The API expects cart item ID in the order_id field
       const cartItemId = orderDetail?.order?.id;
-      
+
       if (!cartItemId) {
         showError("Unable to find order item ID");
         setIsSubmitting(false);
@@ -228,10 +256,10 @@ const ReturnRefundPage = () => {
 
       // Determine return type based on return method
       const returnType = isDirectStoreReturn ? "IN_STORE" : "DELIVERY";
-      
+
       // Bank account is only required for COD/PICKUP with "Return Online"
       const bankAccountId = isBankAccMandatory ? selectedBankAccountId : "";
-      
+
       const returnData = {
         order_id: cartItemId,
         address_id: isDirectStoreReturn ? "" : selectedAddressId,
@@ -243,7 +271,9 @@ const ReturnRefundPage = () => {
 
       await returnOrder(returnData);
       showSuccess("Return initiated successfully!");
-      navigate(`/order/${orderId}`);
+      
+      // Replace current history entry and navigate to order details to prevent back navigation
+      navigate(`/order/${orderId}`, { replace: true });
     } catch (error) {
       console.error("Failed to return order:", error);
       showError(error.message || "Failed to initiate return. Please try again.");
@@ -275,7 +305,7 @@ const ReturnRefundPage = () => {
 
   const validateField = (name, value) => {
     let error = "";
-    
+
     switch (name) {
       case "account_holder_name":
         if (!value?.trim()) {
@@ -316,7 +346,7 @@ const ReturnRefundPage = () => {
       default:
         break;
     }
-    
+
     return error;
   };
 
@@ -327,7 +357,7 @@ const ReturnRefundPage = () => {
       ...prev,
       [name]: error,
     }));
-    
+
     // Also validate confirm_account_number if account_number changed
     if (name === "account_number" && accountFormData.confirm_account_number) {
       const confirmError = validateField("confirm_account_number", accountFormData.confirm_account_number);
@@ -348,12 +378,12 @@ const ReturnRefundPage = () => {
       ifsc_code: validateField("ifsc_code", accountFormData.ifsc_code),
       account_type: "",
     };
-    
+
     setAccountFormErrors(errors);
-    
+
     // Check if there are any errors
     const hasErrors = Object.values(errors).some(error => error !== "");
-    
+
     if (hasErrors) {
       // Show first error message
       const firstError = Object.values(errors).find(error => error !== "");
@@ -362,7 +392,7 @@ const ReturnRefundPage = () => {
       }
       return false;
     }
-    
+
     return true;
   };
 
@@ -375,30 +405,30 @@ const ReturnRefundPage = () => {
     if (!accountFormData.confirm_account_number?.trim()) return false;
     if (!accountFormData.ifsc_code?.trim()) return false;
     if (!accountFormData.account_type) return false;
-    
+
     // Check account numbers match
     if (accountFormData.account_number !== accountFormData.confirm_account_number) return false;
-    
+
     // Check account number length (9-18 digits)
     const accountNumberLength = accountFormData.account_number.length;
     if (accountNumberLength < 9 || accountNumberLength > 18) return false;
-    
+
     // Check IFSC code length (11 characters)
     if (accountFormData.ifsc_code.length !== 11) return false;
-    
+
     return true;
   };
 
   const handleAddAccountSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateAccountForm()) {
       return;
     }
 
     try {
       setIsAddingAccount(true);
-      
+
       const submitFormData = new FormData();
       submitFormData.append('account_holder_name', accountFormData.account_holder_name);
       submitFormData.append('bank_name', accountFormData.bank_name);
@@ -408,7 +438,7 @@ const ReturnRefundPage = () => {
       submitFormData.append('account_type', accountFormData.account_type);
 
       await addBankAccount(submitFormData);
-      
+
       // Refresh bank accounts list
       const bankAccountsResponse = await listBankAccounts();
       if (bankAccountsResponse.results) {
@@ -420,7 +450,7 @@ const ReturnRefundPage = () => {
       }
 
       showSuccess("Bank account added successfully!");
-      
+
       // Reset form and close popup
       setAccountFormData({
         account_number: "",
@@ -436,6 +466,100 @@ const ReturnRefundPage = () => {
       showError(error.message || "Failed to add bank account. Please try again.");
     } finally {
       setIsAddingAccount(false);
+    }
+  };
+
+  // Address form handlers
+  const handleAddressInputChange = (e) => {
+    const { name, value } = e.target;
+    setAddressFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const isAddressFormValid = () => {
+    // Check all required fields are filled
+    if (!addressFormData.location_address?.trim()) return false;
+    if (!addressFormData.phone_number?.trim()) return false;
+    if (!addressFormData.address?.trim()) return false;
+    if (!addressFormData.landmark?.trim()) return false;
+    if (!addressFormData.state?.trim()) return false;
+    if (!addressFormData.city?.trim()) return false;
+    if (!addressFormData.pincode?.trim()) return false;
+
+    // Check pincode length (6 digits)
+    if (addressFormData.pincode.length !== 6) return false;
+
+    // Check phone number length (10 digits)
+    if (addressFormData.phone_number.length !== 10) return false;
+
+    return true;
+  };
+
+  const handleAddAddressSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!isAddressFormValid()) {
+      showError("Please fill all required fields correctly");
+      return;
+    }
+
+    try {
+      setIsAddingAddress(true);
+
+      const submitFormData = new FormData();
+      submitFormData.append('phone_number', addressFormData.phone_number);
+      submitFormData.append('landmark', addressFormData.landmark);
+      submitFormData.append('location_address', addressFormData.location_address);
+      submitFormData.append('address', addressFormData.address);
+      submitFormData.append('city', addressFormData.city);
+      submitFormData.append('state', addressFormData.state);
+      submitFormData.append('pincode', addressFormData.pincode);
+      submitFormData.append('country', ''); // Empty string to match Flutter
+      submitFormData.append('tag', addressFormData.tag);
+      submitFormData.append('latitude', '1');
+      submitFormData.append('longitude', '1');
+      // Set as default based on checkbox
+      if (addressFormData.is_default) {
+        submitFormData.append('is_default', 'true');
+      }
+
+      await addAddress(submitFormData);
+
+      // Refresh addresses list
+      const addressesResponse = await listAddresses();
+      if (addressesResponse.results) {
+        setAddresses(addressesResponse.results);
+        // Select the newly added address (it will be the last one)
+        if (addressesResponse.results.length > 0) {
+          setSelectedAddressId(addressesResponse.results[addressesResponse.results.length - 1].id);
+        }
+      }
+
+      showSuccess("Address added successfully!");
+
+      // Reset form and close popup
+      setAddressFormData({
+        phone_number: "",
+        landmark: "",
+        location_address: "",
+        address: "",
+        city: "",
+        state: "",
+        pincode: "",
+        country: "",
+        tag: "Home",
+        latitude: "1",
+        longitude: "1",
+        is_default: true,
+      });
+      setShowAddAddressPopup(false);
+    } catch (error) {
+      console.error("Failed to add address:", error);
+      showError(error.message || "Failed to add address. Please try again.");
+    } finally {
+      setIsAddingAddress(false);
     }
   };
 
@@ -587,88 +711,88 @@ const ReturnRefundPage = () => {
 
         {/* Pickup Address - Only for "Return Online" */}
         {!isDirectStoreReturn && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Pickup Address</h2>
-            <button
-              onClick={() => setShowAddressPopup(true)}
-              className="text-sm text-[#ec1b45] hover:underline font-medium"
-            >
-              Change
-            </button>
-          </div>
-          {selectedAddress ? (
-            <div className="flex items-start gap-3">
-              <IoLocationOutline size={20} className="text-gray-400 mt-1 flex-shrink-0" />
-              <div className="flex-1">
-                {/* Match Flutter format: location_address (Name) as bold header */}
-                {selectedAddress.location_address && (
-                  <p className="font-bold text-gray-900 mb-1">{selectedAddress.location_address}</p>
-                )}
-                <p className="text-sm text-gray-600 mb-1">{formatAddress(selectedAddress)}</p>
-                <p className="text-xs text-gray-500">{selectedAddress.phone_number || 'N/A'}</p>
-              </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Pickup Address</h2>
+              <button
+                onClick={() => setShowAddressPopup(true)}
+                className="text-sm text-[#ec1b45] hover:underline font-medium"
+              >
+                Change
+              </button>
             </div>
-          ) : (
-            <p className="text-sm text-gray-600">No address selected</p>
-          )}
-        </div>
+            {selectedAddress ? (
+              <div className="flex items-start gap-3">
+                <IoLocationOutline size={20} className="text-gray-400 mt-1 flex-shrink-0" />
+                <div className="flex-1">
+                  {/* Match Flutter format: location_address (Name) as bold header */}
+                  {selectedAddress.location_address && (
+                    <p className="font-bold text-gray-900 mb-1">{selectedAddress.location_address}</p>
+                  )}
+                  <p className="text-sm text-gray-600 mb-1">{formatAddress(selectedAddress)}</p>
+                  <p className="text-xs text-gray-500">{selectedAddress.phone_number || 'N/A'}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600">No address selected</p>
+            )}
+          </div>
         )}
 
         {/* Refund Amount - Only show for non-BANK payments */}
         {!isBankPayment && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">
-            Refund Amount : {formatPrice(order.total_amount)}
-          </h2>
-        </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">
+              Refund Amount : {formatPrice(order.total_amount)}
+            </h2>
+          </div>
         )}
 
         {/* Add Account - Only for COD/PICKUP with "Return Online" */}
         {isBankAccMandatory && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Add Account</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Refund will be transferred to your bank account with in 7 business days after pickup is completed.
-          </p>
+          <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Add Account</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Refund will be transferred to your bank account with in 7 business days after pickup is completed.
+            </p>
 
-          {bankAccounts.length > 0 ? (
-            <div className="space-y-3 mb-4">
-              {bankAccounts.map((account) => (
-                <label
-                  key={account.id}
-                  className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
-                >
-                  <input
-                    type="radio"
-                    name="bankAccount"
-                    value={account.id}
-                    checked={selectedBankAccountId === account.id}
-                    onChange={(e) => setSelectedBankAccountId(Number(e.target.value))}
-                    className="mt-1 w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45]"
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {formatBankAccount(account)}
-                    </p>
-                    {account.ifsc_code && (
-                      <p className="text-xs text-gray-600">{account.ifsc_code}</p>
-                    )}
-                  </div>
-                </label>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-600 mb-4">No bank accounts added yet.</p>
-          )}
+            {bankAccounts.length > 0 ? (
+              <div className="space-y-3 mb-4">
+                {bankAccounts.map((account) => (
+                  <label
+                    key={account.id}
+                    className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
+                  >
+                    <input
+                      type="radio"
+                      name="bankAccount"
+                      value={account.id}
+                      checked={selectedBankAccountId === account.id}
+                      onChange={(e) => setSelectedBankAccountId(Number(e.target.value))}
+                      className="mt-1 w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45]"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {formatBankAccount(account)}
+                      </p>
+                      {account.ifsc_code && (
+                        <p className="text-xs text-gray-600">{account.ifsc_code}</p>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600 mb-4">No bank accounts added yet.</p>
+            )}
 
-          <button
-            onClick={handleAddNewAccount}
-            className="text-sm text-[#ec1b45] hover:underline font-medium"
-          >
-            + Add New Account
-          </button>
-        </div>
+            <button
+              onClick={handleAddNewAccount}
+              className="text-sm text-[#ec1b45] hover:underline font-medium"
+            >
+              + Add New Account
+            </button>
+          </div>
         )}
 
         {/* Continue Button */}
@@ -685,8 +809,8 @@ const ReturnRefundPage = () => {
 
       {/* Address Change Popup */}
       {showAddressPopup && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 pointer-events-none">
-          <div className="bg-white rounded-t-lg sm:rounded-lg w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl border border-gray-200 pointer-events-auto">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 pointer-events-none">
+          <div className="bg-white rounded-t-lg sm:rounded-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-2xl border border-gray-200 pointer-events-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Change Address</h3>
               <button
@@ -697,7 +821,14 @@ const ReturnRefundPage = () => {
               </button>
             </div>
             <div className="p-4 space-y-3">
-              {addresses.map((address) => (
+              {[...addresses].sort((a, b) => {
+                // If a is default and b is not, a comes first
+                if (a.is_default && !b.is_default) return -1;
+                // If b is default and a is not, b comes first
+                if (!a.is_default && b.is_default) return 1;
+                // If both are default or both are not, maintain original order
+                return 0;
+              }).map((address) => (
                 <label
                   key={address.id}
                   className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
@@ -729,7 +860,7 @@ const ReturnRefundPage = () => {
               <button
                 onClick={() => {
                   setShowAddressPopup(false);
-                  navigate('/addresses');
+                  setShowAddAddressPopup(true);
                 }}
                 className="w-full text-sm text-[#ec1b45] hover:underline font-medium text-center py-2"
               >
@@ -812,8 +943,8 @@ const ReturnRefundPage = () => {
 
       {/* Add Bank Account Popup */}
       {showAddAccountPopup && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 overflow-y-auto pointer-events-none">
-          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 pointer-events-auto">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto pointer-events-none">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 pointer-events-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between z-10">
               <h3 className="text-lg font-semibold text-gray-900">Add New Bank Account</h3>
               <button
@@ -856,9 +987,8 @@ const ReturnRefundPage = () => {
                   onChange={handleAccountInputChange}
                   onBlur={handleAccountFieldBlur}
                   placeholder="Enter account holder name"
-                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none ${
-                    accountFormErrors.account_holder_name ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none ${accountFormErrors.account_holder_name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                 />
                 {accountFormErrors.account_holder_name && (
                   <p className="text-sm text-red-600 mt-1">{accountFormErrors.account_holder_name}</p>
@@ -877,9 +1007,8 @@ const ReturnRefundPage = () => {
                   onChange={handleAccountInputChange}
                   onBlur={handleAccountFieldBlur}
                   placeholder="Enter bank name"
-                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none ${
-                    accountFormErrors.bank_name ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none ${accountFormErrors.bank_name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                 />
                 {accountFormErrors.bank_name && (
                   <p className="text-sm text-red-600 mt-1">{accountFormErrors.bank_name}</p>
@@ -898,9 +1027,8 @@ const ReturnRefundPage = () => {
                   onChange={handleAccountInputChange}
                   onBlur={handleAccountFieldBlur}
                   placeholder="Enter branch name"
-                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none ${
-                    accountFormErrors.branch_name ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none ${accountFormErrors.branch_name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                 />
                 {accountFormErrors.branch_name && (
                   <p className="text-sm text-red-600 mt-1">{accountFormErrors.branch_name}</p>
@@ -920,9 +1048,8 @@ const ReturnRefundPage = () => {
                   onBlur={handleAccountFieldBlur}
                   placeholder="Enter account number"
                   maxLength={18}
-                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none ${
-                    accountFormErrors.account_number ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none ${accountFormErrors.account_number ? 'border-red-500' : 'border-gray-300'
+                    }`}
                 />
                 {accountFormErrors.account_number && (
                   <p className="text-sm text-red-600 mt-1">{accountFormErrors.account_number}</p>
@@ -942,9 +1069,8 @@ const ReturnRefundPage = () => {
                   onBlur={handleAccountFieldBlur}
                   placeholder="Re-enter account number"
                   maxLength={18}
-                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none ${
-                    accountFormErrors.confirm_account_number ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none ${accountFormErrors.confirm_account_number ? 'border-red-500' : 'border-gray-300'
+                    }`}
                 />
                 {accountFormErrors.confirm_account_number && (
                   <p className="text-sm text-red-600 mt-1">{accountFormErrors.confirm_account_number}</p>
@@ -976,9 +1102,8 @@ const ReturnRefundPage = () => {
                   onBlur={handleAccountFieldBlur}
                   placeholder="Enter IFSC code"
                   maxLength={11}
-                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none uppercase ${
-                    accountFormErrors.ifsc_code ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none uppercase ${accountFormErrors.ifsc_code ? 'border-red-500' : 'border-gray-300'
+                    }`}
                 />
                 {accountFormErrors.ifsc_code && (
                   <p className="text-sm text-red-600 mt-1">{accountFormErrors.ifsc_code}</p>
@@ -997,8 +1122,8 @@ const ReturnRefundPage = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
                 >
                   <option value="SAVINGS">SAVINGS</option>
-                  <option value="SALARY">SALARY</option>
                   <option value="CURRENT">CURRENT</option>
+                  <option value="OTHER">OTHER</option>
                 </select>
               </div>
 
@@ -1034,9 +1159,239 @@ const ReturnRefundPage = () => {
           </div>
         </div>
       )}
+
+      {/* Add Address Popup */}
+      {showAddAddressPopup && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto pointer-events-none">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 pointer-events-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between z-10">
+              <h3 className="text-lg font-semibold text-gray-900">Add New Address</h3>
+              <button
+                onClick={() => {
+                  setShowAddAddressPopup(false);
+                  setAddressFormData({
+                    tag: "Home",
+                    location_address: "",
+                    address: "",
+                    landmark: "",
+                    city: "",
+                    state: "",
+                    country: "India",
+                    pincode: "",
+                    phone_number: "",
+                    latitude: "1",
+                    longitude: "1",
+                    is_default: true,
+                  });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FaTimes size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleAddAddressSubmit} className="p-4 space-y-4">
+              {/* Name (Location Address) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="location_address"
+                  value={addressFormData.location_address}
+                  onChange={handleAddressInputChange}
+                  required
+                  placeholder="Enter name"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+                />
+              </div>
+
+              {/* Mobile Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mobile Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  name="phone_number"
+                  value={addressFormData.phone_number}
+                  onChange={handleAddressInputChange}
+                  required
+                  maxLength={10}
+                  placeholder="Enter mobile number"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+                />
+              </div>
+
+              {/* Flat No. Street Details */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Flat No. Street Details <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="address"
+                  value={addressFormData.address}
+                  onChange={handleAddressInputChange}
+                  required
+                  placeholder="Enter flat no. and street details"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+                />
+              </div>
+
+              {/* Landmark */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Landmark <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="landmark"
+                  value={addressFormData.landmark}
+                  onChange={handleAddressInputChange}
+                  required
+                  placeholder="Enter landmark"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+                />
+              </div>
+
+              {/* State */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  State <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="state"
+                  value={addressFormData.state}
+                  onChange={handleAddressInputChange}
+                  required
+                  placeholder="Enter state"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+                />
+              </div>
+
+              {/* District (City) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  District <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="city"
+                  value={addressFormData.city}
+                  onChange={handleAddressInputChange}
+                  required
+                  placeholder="Enter district"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+                />
+              </div>
+
+              {/* Pincode */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Pincode <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="pincode"
+                  value={addressFormData.pincode}
+                  onChange={handleAddressInputChange}
+                  required
+                  maxLength={6}
+                  placeholder="Enter pincode"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+                />
+              </div>
+
+              {/* Address Type (Tag) - Home/Office only */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Address Type <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tag"
+                      value="Home"
+                      checked={addressFormData.tag === 'Home'}
+                      onChange={handleAddressInputChange}
+                      className="w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45]"
+                      style={{ accentColor: '#ec1b45' }}
+                    />
+                    <span className="text-sm text-gray-700">Home</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tag"
+                      value="Office"
+                      checked={addressFormData.tag === 'Office'}
+                      onChange={handleAddressInputChange}
+                      className="w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45]"
+                      style={{ accentColor: '#ec1b45' }}
+                    />
+                    <span className="text-sm text-gray-700">Office</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Set as Default Checkbox */}
+              <div className="flex items-center gap-3 pt-2">
+                <input
+                  type="checkbox"
+                  name="is_default"
+                  id="is_default_address"
+                  checked={addressFormData.is_default}
+                  onChange={(e) => setAddressFormData(prev => ({ ...prev, is_default: e.target.checked }))}
+                  className="w-4 h-4 text-[#ec1b45] border-gray-300 rounded focus:ring-[#ec1b45] cursor-pointer"
+                  style={{ accentColor: '#ec1b45' }}
+                />
+                <label htmlFor="is_default_address" className="text-sm text-gray-700 cursor-pointer">
+                  Set as default address
+                </label>
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddAddressPopup(false);
+                    setAddressFormData({
+                      phone_number: "",
+                      landmark: "",
+                      location_address: "",
+                      address: "",
+                      city: "",
+                      state: "",
+                      pincode: "",
+                      country: "",
+                      tag: "Home",
+                      latitude: "1",
+                      longitude: "1",
+                      is_default: true,
+                    });
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!isAddressFormValid() || isAddingAddress}
+                  className="flex-1 px-4 py-2 bg-[#ec1b45] text-white rounded-md hover:bg-[#d91b40] transition-colors font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  {isAddingAddress ? "Adding..." : "Add Address"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default ReturnRefundPage;
-

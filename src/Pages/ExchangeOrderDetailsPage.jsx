@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { listAddresses } from "../services/api/address";
+import { listAddresses, addAddress } from "../services/api/address";
 import { exchangeOrder } from "../services/api/order";
 import { showError, showSuccess } from "../utils/toast";
 import LoaderSpinner from "../components/LoaderSpinner";
@@ -23,13 +23,56 @@ const ExchangeOrderDetailsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddressPopup, setShowAddressPopup] = useState(false);
+  const [showAddAddressPopup, setShowAddAddressPopup] = useState(false);
+  const [isAddingAddress, setIsAddingAddress] = useState(false);
+  const [addressFormData, setAddressFormData] = useState({
+    phone_number: "",
+    landmark: "",
+    location_address: "",
+    address: "",
+    city: "",
+    state: "",
+    pincode: "",
+    country: "",
+    tag: "Home",
+    latitude: "1",
+    longitude: "1",
+    is_default: true,
+  });
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
+  // Prevent back navigation to exchange pages after successful submission
   useEffect(() => {
-    fetchAddresses();
-  }, []);
+    // This effect runs once when component mounts
+    // We'll use it to replace the previous history entry if we came from an exchange-related page
+    
+    // Check if we have state indicating we came from an exchange flow
+    if (location.state?.fromExchangeFlow) {
+      // Replace the current history entry to prevent back navigation
+      window.history.replaceState(null, '', window.location.href);
+    }
+  }, [location.state]);
 
-  const fetchAddresses = async () => {
+  useEffect(() => {
+    fetchData();
+
+    // If orderDetail is not in location.state, fetch it
+    if (!orderDetail && orderId) {
+      const fetchOrderDetails = async () => {
+        try {
+          const response = await getOrderDetails(orderId);
+          if (response.result) {
+            setOrderDetail(response.result);
+          }
+        } catch (error) {
+          console.error("Failed to fetch order details:", error);
+        }
+      };
+      fetchOrderDetails();
+    }
+  }, [orderId]);
+
+  const fetchData = async () => {
     try {
       setIsLoading(true);
       const addressesResponse = await listAddresses();
@@ -99,7 +142,7 @@ const ExchangeOrderDetailsPage = () => {
 
   const handleProcessExchange = async () => {
     const isDirectStoreExchange = exchangeMethod === "Exchange Direct From Store";
-    
+
     // Address is only required for "Exchange Online"
     if (!isDirectStoreExchange && !selectedAddressId) {
       showError("Please select an exchange address");
@@ -129,11 +172,11 @@ const ExchangeOrderDetailsPage = () => {
   const processExchangeAPI = async () => {
     try {
       setIsSubmitting(true);
-      
+
       const order = orderDetail?.order || {};
       const sizeType = productVariants?.product?.size_type || 'clothing_size';
       const isDirectStoreExchange = exchangeMethod === "Exchange Direct From Store";
-      
+
       const exchangeData = {
         previous_order_id: order.id || orderId,
         product_id: order.product_id,
@@ -159,7 +202,8 @@ const ExchangeOrderDetailsPage = () => {
       }
 
       await exchangeOrder(exchangeData);
-      
+
+      // Show success popup
       setShowSuccessPopup(true);
       setShowDirectStorePopup(false);
     } catch (error) {
@@ -167,6 +211,100 @@ const ExchangeOrderDetailsPage = () => {
       showError(error.message || "Failed to process exchange. Please try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Address form handlers
+  const handleAddressInputChange = (e) => {
+    const { name, value } = e.target;
+    setAddressFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const isAddressFormValid = () => {
+    // Check all required fields are filled
+    if (!addressFormData.location_address?.trim()) return false;
+    if (!addressFormData.phone_number?.trim()) return false;
+    if (!addressFormData.address?.trim()) return false;
+    if (!addressFormData.landmark?.trim()) return false;
+    if (!addressFormData.state?.trim()) return false;
+    if (!addressFormData.city?.trim()) return false;
+    if (!addressFormData.pincode?.trim()) return false;
+
+    // Check pincode length (6 digits)
+    if (addressFormData.pincode.length !== 6) return false;
+
+    // Check phone number length (10 digits)
+    if (addressFormData.phone_number.length !== 10) return false;
+
+    return true;
+  };
+
+  const handleAddAddressSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!isAddressFormValid()) {
+      showError("Please fill all required fields correctly");
+      return;
+    }
+
+    try {
+      setIsAddingAddress(true);
+
+      const submitFormData = new FormData();
+      submitFormData.append('phone_number', addressFormData.phone_number);
+      submitFormData.append('landmark', addressFormData.landmark);
+      submitFormData.append('location_address', addressFormData.location_address);
+      submitFormData.append('address', addressFormData.address);
+      submitFormData.append('city', addressFormData.city);
+      submitFormData.append('state', addressFormData.state);
+      submitFormData.append('pincode', addressFormData.pincode);
+      submitFormData.append('country', ''); // Empty string to match Flutter
+      submitFormData.append('tag', addressFormData.tag);
+      submitFormData.append('latitude', '1');
+      submitFormData.append('longitude', '1');
+      // Set as default based on checkbox
+      if (addressFormData.is_default) {
+        submitFormData.append('is_default', 'true');
+      }
+
+      await addAddress(submitFormData);
+
+      // Refresh addresses list
+      const addressesResponse = await listAddresses();
+      if (addressesResponse.results) {
+        setAddresses(addressesResponse.results);
+        // Select the newly added address (it will be the last one)
+        if (addressesResponse.results.length > 0) {
+          setSelectedAddressId(addressesResponse.results[addressesResponse.results.length - 1].id);
+        }
+      }
+
+      showSuccess("Address added successfully!");
+
+      // Reset form and close popup
+      setAddressFormData({
+        phone_number: "",
+        landmark: "",
+        location_address: "",
+        address: "",
+        city: "",
+        state: "",
+        pincode: "",
+        country: "",
+        tag: "Home",
+        latitude: "1",
+        longitude: "1",
+        is_default: true,
+      });
+      setShowAddAddressPopup(false);
+    } catch (error) {
+      console.error("Failed to add address:", error);
+      showError(error.message || "Failed to add address. Please try again.");
+    } finally {
+      setIsAddingAddress(false);
     }
   };
 
@@ -323,32 +461,32 @@ const ExchangeOrderDetailsPage = () => {
 
         {/* Exchange Address - Only for "Exchange Online" */}
         {!isDirectStoreExchange && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Exchange Address</h2>
-            <button
-              onClick={() => setShowAddressPopup(true)}
-              className="text-sm text-[#ec1b45] hover:underline font-medium"
-            >
-              Change
-            </button>
-          </div>
-          {selectedAddress ? (
-            <div className="flex items-start gap-3">
-              <IoLocationOutline size={20} className="text-gray-400 mt-1 flex-shrink-0" />
-              <div className="flex-1">
-                {/* Match Flutter format: location_address (Name) as bold header */}
-                {selectedAddress.location_address && (
-                  <p className="font-bold text-gray-900 mb-1">{selectedAddress.location_address}</p>
-                )}
-                <p className="text-sm text-gray-600 mb-1">{formatAddress(selectedAddress)}</p>
-                <p className="text-xs text-gray-500">{selectedAddress.phone_number || 'N/A'}</p>
-              </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Exchange Address</h2>
+              <button
+                onClick={() => setShowAddressPopup(true)}
+                className="text-sm text-[#ec1b45] hover:underline font-medium"
+              >
+                Change
+              </button>
             </div>
-          ) : (
-            <p className="text-sm text-gray-600">No address selected</p>
-          )}
-        </div>
+            {selectedAddress ? (
+              <div className="flex items-start gap-3">
+                <IoLocationOutline size={20} className="text-gray-400 mt-1 flex-shrink-0" />
+                <div className="flex-1">
+                  {/* Match Flutter format: location_address (Name) as bold header */}
+                  {selectedAddress.location_address && (
+                    <p className="font-bold text-gray-900 mb-1">{selectedAddress.location_address}</p>
+                  )}
+                  <p className="text-sm text-gray-600 mb-1">{formatAddress(selectedAddress)}</p>
+                  <p className="text-xs text-gray-500">{selectedAddress.phone_number || 'N/A'}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600">No address selected</p>
+            )}
+          </div>
         )}
 
         {/* Delivery Estimate */}
@@ -376,8 +514,8 @@ const ExchangeOrderDetailsPage = () => {
 
       {/* Address Change Popup */}
       {showAddressPopup && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 pointer-events-none">
-          <div className="bg-white rounded-t-lg sm:rounded-lg w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl border border-gray-200 pointer-events-auto">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 pointer-events-none">
+          <div className="bg-white rounded-t-lg sm:rounded-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-2xl border border-gray-200 pointer-events-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Change Address</h3>
               <button
@@ -388,7 +526,14 @@ const ExchangeOrderDetailsPage = () => {
               </button>
             </div>
             <div className="p-4 space-y-3">
-              {addresses.map((address) => (
+              {[...addresses].sort((a, b) => {
+                // If a is default and b is not, a comes first
+                if (a.is_default && !b.is_default) return -1;
+                // If b is default and a is not, b comes first
+                if (!a.is_default && b.is_default) return 1;
+                // If both are default or both are not, maintain original order
+                return 0;
+              }).map((address) => (
                 <label
                   key={address.id}
                   className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
@@ -420,7 +565,7 @@ const ExchangeOrderDetailsPage = () => {
               <button
                 onClick={() => {
                   setShowAddressPopup(false);
-                  navigate('/addresses');
+                  setShowAddAddressPopup(true);
                 }}
                 className="w-full text-sm text-[#ec1b45] hover:underline font-medium text-center py-2"
               >
@@ -433,21 +578,28 @@ const ExchangeOrderDetailsPage = () => {
 
       {/* Success Popup */}
       {showSuccessPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-8 max-w-sm w-full text-center shadow-2xl border border-gray-200 pointer-events-auto">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
+          {/* Invisible backdrop to catch clicks */}
+          <div
+            className="absolute inset-0 pointer-events-auto"
+            onClick={() => setShowSuccessPopup(false)}
+          ></div>
+
+          <div className="bg-white w-full sm:w-auto sm:min-w-[400px] p-8 rounded-t-2xl sm:rounded-xl shadow-[0_-4px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] border border-gray-100 pointer-events-auto transform transition-transform duration-300 ease-out">
             <div className="flex justify-center mb-4">
               <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
                 <FaCheckCircle size={40} className="text-green-500" />
               </div>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            <h3 className="text-xl font-semibold text-gray-900 mb-2 text-center">
               Request Submitted Successfully!
             </h3>
             <div className="mt-6 space-y-3">
               <button
                 onClick={() => {
                   setShowSuccessPopup(false);
-                  navigate(`/order/${orderId}`);
+                  // Navigate to orders page and replace history to prevent back navigation
+                  navigate('/orders', { replace: true });
                 }}
                 className="w-full bg-[#ec1b45] text-white py-3 px-6 rounded-md hover:bg-[#d91b40] transition-colors font-semibold"
               >
@@ -456,13 +608,245 @@ const ExchangeOrderDetailsPage = () => {
               <button
                 onClick={() => {
                   setShowSuccessPopup(false);
-                  navigate('/home');
+                  // Navigate to home page and replace history to prevent back navigation
+                  navigate('/home', { replace: true });
                 }}
                 className="w-full bg-white text-[#ec1b45] border-2 border-[#ec1b45] py-3 px-6 rounded-md hover:bg-gray-50 transition-colors font-semibold"
               >
                 Back to Home
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Address Popup */}
+      {showAddAddressPopup && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto pointer-events-none">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 pointer-events-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between z-10">
+              <h3 className="text-lg font-semibold text-gray-900">Add New Address</h3>
+              <button
+                onClick={() => {
+                  setShowAddAddressPopup(false);
+                  setAddressFormData({
+                    phone_number: "",
+                    landmark: "",
+                    location_address: "",
+                    address: "",
+                    city: "",
+                    state: "",
+                    pincode: "",
+                    country: "",
+                    tag: "Home",
+                    latitude: "1",
+                    longitude: "1",
+                    is_default: true,
+                  });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FaTimes size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleAddAddressSubmit} className="p-4 space-y-4">
+              {/* Name (Location Address) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="location_address"
+                  value={addressFormData.location_address}
+                  onChange={handleAddressInputChange}
+                  required
+                  placeholder="Enter name"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+                />
+              </div>
+
+              {/* Mobile Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mobile Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  name="phone_number"
+                  value={addressFormData.phone_number}
+                  onChange={handleAddressInputChange}
+                  required
+                  maxLength={10}
+                  placeholder="Enter mobile number"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+                />
+              </div>
+
+              {/* Flat No. Street Details */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Flat No. Street Details <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="address"
+                  value={addressFormData.address}
+                  onChange={handleAddressInputChange}
+                  required
+                  placeholder="Enter flat no. and street details"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+                />
+              </div>
+
+              {/* Landmark */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Landmark <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="landmark"
+                  value={addressFormData.landmark}
+                  onChange={handleAddressInputChange}
+                  required
+                  placeholder="Enter landmark"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+                />
+              </div>
+
+              {/* State */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  State <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="state"
+                  value={addressFormData.state}
+                  onChange={handleAddressInputChange}
+                  required
+                  placeholder="Enter state"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+                />
+              </div>
+
+              {/* District (City) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  District <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="city"
+                  value={addressFormData.city}
+                  onChange={handleAddressInputChange}
+                  required
+                  placeholder="Enter district"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+                />
+              </div>
+
+              {/* Pincode */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Pincode <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="pincode"
+                  value={addressFormData.pincode}
+                  onChange={handleAddressInputChange}
+                  required
+                  maxLength={6}
+                  placeholder="Enter pincode"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ec1b45] focus:border-[#ec1b45] outline-none"
+                />
+              </div>
+
+              {/* Address Type (Tag) - Home/Office only */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Address Type <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tag"
+                      value="Home"
+                      checked={addressFormData.tag === 'Home'}
+                      onChange={handleAddressInputChange}
+                      className="w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45]"
+                      style={{ accentColor: '#ec1b45' }}
+                    />
+                    <span className="text-sm text-gray-700">Home</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="tag"
+                      value="Office"
+                      checked={addressFormData.tag === 'Office'}
+                      onChange={handleAddressInputChange}
+                      className="w-4 h-4 text-[#ec1b45] border-gray-300 focus:ring-[#ec1b45]"
+                      style={{ accentColor: '#ec1b45' }}
+                    />
+                    <span className="text-sm text-gray-700">Office</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Set as Default Checkbox */}
+              <div className="flex items-center gap-3 pt-2">
+                <input
+                  type="checkbox"
+                  name="is_default"
+                  id="is_default_address_exchange"
+                  checked={addressFormData.is_default}
+                  onChange={(e) => setAddressFormData(prev => ({ ...prev, is_default: e.target.checked }))}
+                  className="w-4 h-4 text-[#ec1b45] border-gray-300 rounded focus:ring-[#ec1b45] cursor-pointer"
+                  style={{ accentColor: '#ec1b45' }}
+                />
+                <label htmlFor="is_default_address_exchange" className="text-sm text-gray-700 cursor-pointer">
+                  Set as default address
+                </label>
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddAddressPopup(false);
+                    setAddressFormData({
+                      phone_number: "",
+                      landmark: "",
+                      location_address: "",
+                      address: "",
+                      city: "",
+                      state: "",
+                      pincode: "",
+                      country: "",
+                      tag: "Home",
+                      latitude: "1",
+                      longitude: "1",
+                      is_default: true,
+                    });
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!isAddressFormValid() || isAddingAddress}
+                  className="flex-1 px-4 py-2 bg-[#ec1b45] text-white rounded-md hover:bg-[#d91b40] transition-colors font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  {isAddingAddress ? "Adding..." : "Add Address"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

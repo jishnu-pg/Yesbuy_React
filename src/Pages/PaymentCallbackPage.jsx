@@ -13,6 +13,7 @@ const PaymentCallbackPage = () => {
   const [isProcessing, setIsProcessing] = useState(true);
 
   useEffect(() => {
+    console.log('PaymentCallbackPage: Component mounted, handling payment callback...');
     const handlePaymentCallback = async () => {
       try {
         // Get payment response from URL parameters
@@ -49,6 +50,7 @@ const PaymentCallbackPage = () => {
         const cartData = cartDataStr ? JSON.parse(cartDataStr) : null;
 
         // Check if payment was successful
+        console.log('PaymentCallbackPage: Checking payment success...', paymentResponse);
         if (isPaymentSuccess(paymentResponse)) {
           const transactionId = getTransactionId(paymentResponse);
 
@@ -73,6 +75,7 @@ const PaymentCallbackPage = () => {
           showSuccess("Payment successful! Your order has been placed.");
 
           // Navigate to order success page (same page used for COD)
+          console.log('PaymentCallbackPage: Navigating to order success page...', { orderId, amount });
           navigate('/order-success', {
             state: {
               orderData: {

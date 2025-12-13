@@ -196,8 +196,8 @@ const CartPage = () => {
         sessionStorage.setItem('easebuzz_cart_data', JSON.stringify(cartData));
 
         // Initialize Easebuzz payment
-        // Easebuzz uses SDK-based integration (popup/modal)
-        // The SDK will handle the payment flow and call the callbacks
+        // Use hardcoded URLs like Django app (redirection approach)
+        console.log('Initializing Easebuzz payment...', paymentData);
         initializeEasebuzzPayment(
           {
             access_key: paymentData.access_key,
@@ -210,8 +210,8 @@ const CartPage = () => {
             order_id: paymentData.order_id,
             hash: paymentData.hash, // Add hash if backend provides it
             productinfo: paymentData.productinfo, // Add productinfo if backend provides it
-            surl: paymentData.surl, // Success URL if backend provides it
-            furl: paymentData.furl, // Failure URL if backend provides it
+            surl: window.location.origin + '/payment-success', // Override backend surl with custom success URL
+            furl: window.location.origin + '/payment-fail', // Override backend furl with custom failure URL
             sdk_url: paymentData.sdk_url, // SDK URL if backend provides it
             payment_url: paymentData.payment_url, // Payment URL if backend provides it
           },
