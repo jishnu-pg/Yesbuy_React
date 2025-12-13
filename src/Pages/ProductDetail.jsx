@@ -88,37 +88,219 @@ const ProductDetail = () => {
           const isRunningMaterial = response.data.product?.size_type === 'running_material' ||
             response.data.product?.size_type === 'runningmaterial';
 
-          // Set initial color variant (first one)
+          // Select initial variant and size - always calculate lowest price ourselves
           if (response.data.variants && response.data.variants.length > 0) {
-            const firstVariant = response.data.variants[0];
-            setSelectedColorVariant(firstVariant);
-
-            // Set initial size and variant (first available)
-            if (firstVariant.data && firstVariant.data.length > 0) {
-              const firstSizeVariant = firstVariant.data[0];
-
-              // For running_material, don't set size (it doesn't have sizes)
-              if (!isRunningMaterial) {
-                setSelectedSize(firstSizeVariant.size);
+            // Helper function to get the effective price of a variant
+            const getVariantPrice = (variant) => {
+              if (variant.discount_price?.has_offer && variant.discount_price?.discounted_price) {
+                return parseFloat(variant.discount_price.discounted_price);
               }
-              setSelectedVariant(firstSizeVariant);
-
-              // For running_material, initialize meter to minimum_meter
-              if (isRunningMaterial) {
-                const minMeter = parseFloat(response.data.product.minimum_meter || firstSizeVariant.minimum_meter || 0);
-                setMeter(minMeter > 0 ? minMeter : 0);
+              return parseFloat(variant.total_price || variant.price || 0);
+            };
+            
+            // Check if all sizes have the same price
+            const allPricesAreSame = (() => {
+              const firstVariant = response.data.variants[0];
+              if (!firstVariant || !firstVariant.data || firstVariant.data.length === 0) {
+                return false;
               }
-
-              // Match mobile app: Only use variant_images (no fallback)
-              // Mobile uses: controller.selectedVariantImages which is variantImages array from selected variant
-              let images = [];
-              if (firstSizeVariant.variant_images && firstSizeVariant.variant_images.length > 0) {
-                images = [...firstSizeVariant.variant_images];
+              
+              const firstPrice = getVariantPrice(firstVariant.data[0]);
+              
+              // Check if all variants across all colors have the same price
+              for (const colorVariant of response.data.variants) {
+                if (!colorVariant.data || colorVariant.data.length === 0) continue;
+                
+                for (const sizeVariant of colorVariant.data) {
+                  const variantPrice = getVariantPrice(sizeVariant);
+                  if (Math.abs(variantPrice - firstPrice) > 0.01) { // Allow small floating point differences
+                    return false;
+                  }
+                }
               }
-              // Note: Mobile app doesn't fallback to additional_images or main_image
-
-              setCurrentImages(images);
+              
+              return true;
+            })();
+            
+            // Calculate the lowest price from all variants (ignore API's lowest_price_variant_id)
+            let calculatedLowestPrice = Infinity;
+            for (const colorVariant of response.data.variants) {
+              if (colorVariant.data && colorVariant.data.length > 0) {
+                for (const sizeVariant of colorVariant.data) {
+                  const variantPrice = getVariantPrice(sizeVariant);
+                  if (variantPrice < calculatedLowestPrice) {
+                    calculatedLowestPrice = variantPrice;
+                  }
+                }
+              }
             }
+            
+            // Debug logging (can be removed after confirming)
+            if (process.env.NODE_ENV === 'development') {
+              console.log('=== VARIANT SELECTION DEBUG ===');
+              console.log('All prices are same:', allPricesAreSame);
+              console.log('Calculated lowest price:', calculatedLowestPrice);
+              
+              // Log all variant prices for debugging
+              const allVariantsWithPrices = [];
+              for (const colorVariant of response.data.variants) {
+                if (colorVariant.data && colorVariant.data.length > 0) {
+                  for (const sizeVariant of colorVariant.data) {
+                    const price = getVariantPrice(sizeVariant);
+                    allVariantsWithPrices.push({
+                      variantId: sizeVariant.id,
+                      size: sizeVariant.size,
+                      color: colorVariant.name || colorVariant.data[0]?.color,
+                      price: price,
+                      isLowestPrice: Math.abs(price - calculatedLowestPrice) < 0.01
+                    });
+                  }
+                }
+              }
+              
+              // Sort by price to find lowest
+              allVariantsWithPrices.sort((a, b) => a.price - b.price);
+              const variantsWithLowestPrice = allVariantsWithPrices.filter(v => Math.abs(v.price - calculatedLowestPrice) < 0.01);
+              
+              console.log('All variants with prices:', allVariantsWithPrices);
+              console.log('Variants with lowest price:', variantsWithLowestPrice);
+              console.log('First variant with lowest price (should be selected):', variantsWithLowestPrice[0]);
+            }
+            
+            let selectedColorVariantToSet = response.data.variants[0]; // Default: first color variant
+            let selectedVariantToSet = null;
+            let selectedSizeToSet = null;
+
+            // For non-running_material products
+            if (!isRunningMaterial) {
+              // If all prices are the same, use first available size
+              if (allPricesAreSame) {
+                const firstVariant = response.data.variants[0];
+                if (firstVariant.available_sizes && firstVariant.available_sizes.length > 0) {
+                  const firstAvailableSize = firstVariant.available_sizes.find(
+                    (size) => size.available_count > 0
+                  ) || firstVariant.available_sizes[0];
+                  
+                  selectedSizeToSet = firstAvailableSize.size;
+                  selectedVariantToSet = firstVariant.data?.find(
+                    (v) => v.size === firstAvailableSize.size
+                  ) || firstVariant.data?.[0];
+                } else if (firstVariant.data && firstVariant.data.length > 0) {
+                  selectedSizeToSet = firstVariant.data[0].size;
+                  selectedVariantToSet = firstVariant.data[0];
+                }
+              } else {
+                // Prices differ - find the FIRST variant (in order) that has the lowest price
+                // Go through variants in order and select the first one with lowest price
+                for (const colorVariant of response.data.variants) {
+                  if (selectedSizeToSet) break; // Already found, exit
+                  
+                  // Check available_sizes array first (matches UI order)
+                  if (colorVariant.available_sizes && colorVariant.available_sizes.length > 0) {
+                    for (const sizeInfo of colorVariant.available_sizes) {
+                      // Find the variant data for this size
+                      const variantForSize = colorVariant.data?.find(v => v.size === sizeInfo.size);
+                      if (variantForSize) {
+                        const variantPrice = getVariantPrice(variantForSize);
+                        // Check if this variant has the lowest price and is available
+                        if (Math.abs(variantPrice - calculatedLowestPrice) < 0.01 && sizeInfo.available_count > 0) {
+                          selectedColorVariantToSet = colorVariant;
+                          selectedSizeToSet = sizeInfo.size;
+                          selectedVariantToSet = variantForSize;
+                          
+                          if (process.env.NODE_ENV === 'development') {
+                            console.log('✓ Found FIRST variant with lowest price in available_sizes:', sizeInfo.size, 'variant ID:', variantForSize.id, 'price:', variantPrice);
+                            console.log('Selected color variant:', colorVariant.name || colorVariant.data[0]?.color);
+                          }
+                          break;
+                        }
+                      }
+                    }
+                  } else {
+                    // Fallback: check data array directly if available_sizes doesn't exist
+                    if (colorVariant.data && colorVariant.data.length > 0) {
+                      for (const sizeVariant of colorVariant.data) {
+                        const variantPrice = getVariantPrice(sizeVariant);
+                        // Check if this variant has the lowest price
+                        if (Math.abs(variantPrice - calculatedLowestPrice) < 0.01) {
+                          selectedColorVariantToSet = colorVariant;
+                          selectedSizeToSet = sizeVariant.size;
+                          selectedVariantToSet = sizeVariant;
+                          
+                          if (process.env.NODE_ENV === 'development') {
+                            console.log('✓ Found FIRST variant with lowest price in data array:', sizeVariant.size, 'variant ID:', sizeVariant.id, 'price:', variantPrice);
+                            console.log('Selected color variant:', colorVariant.name || colorVariant.data[0]?.color);
+                          }
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+                
+                // If lowest price variant not found (shouldn't happen, but fallback just in case)
+                if (!selectedSizeToSet) {
+                  const firstVariant = response.data.variants[0];
+                  if (firstVariant.available_sizes && firstVariant.available_sizes.length > 0) {
+                    const firstAvailableSize = firstVariant.available_sizes.find(
+                      (size) => size.available_count > 0
+                    ) || firstVariant.available_sizes[0];
+                    
+                    selectedSizeToSet = firstAvailableSize.size;
+                    selectedVariantToSet = firstVariant.data?.find(
+                      (v) => v.size === firstAvailableSize.size
+                    ) || firstVariant.data?.[0];
+                  } else if (firstVariant.data && firstVariant.data.length > 0) {
+                    selectedSizeToSet = firstVariant.data[0].size;
+                    selectedVariantToSet = firstVariant.data[0];
+                  }
+                }
+              }
+            } else if (isRunningMaterial) {
+              // For running_material, just select first variant
+              if (selectedColorVariantToSet.data && selectedColorVariantToSet.data.length > 0) {
+                selectedVariantToSet = selectedColorVariantToSet.data[0];
+              }
+            }
+
+            // Final debug logging before setting state
+            if (process.env.NODE_ENV === 'development') {
+              console.log('=== FINAL SELECTION ===');
+              console.log('Selected Color Variant:', selectedColorVariantToSet?.name || selectedColorVariantToSet?.data?.[0]?.color);
+              console.log('Selected Size:', selectedSizeToSet);
+              console.log('Selected Variant ID:', selectedVariantToSet?.id);
+              console.log('Selected Variant Price:', selectedVariantToSet ? getVariantPrice(selectedVariantToSet) : 'N/A');
+              console.log('========================');
+            }
+
+            // Set selected size and variant BEFORE setting color variant to avoid useEffect race condition
+            // This ensures the size is set before the color-change useEffect runs
+            if (!isRunningMaterial && selectedSizeToSet) {
+              setSelectedSize(selectedSizeToSet);
+            }
+            if (selectedVariantToSet) {
+              setSelectedVariant(selectedVariantToSet);
+            }
+
+            // Set the selected color variant (this will trigger useEffect, but size is already set)
+            setSelectedColorVariant(selectedColorVariantToSet);
+
+            // For running_material, initialize meter to minimum_meter
+            if (isRunningMaterial && selectedVariantToSet) {
+              const minMeter = parseFloat(
+                response.data.product.minimum_meter || 
+                selectedVariantToSet.minimum_meter || 
+                0
+              );
+              setMeter(minMeter > 0 ? minMeter : 0);
+            }
+
+            // Set images from selected variant
+            let images = [];
+            if (selectedVariantToSet?.variant_images && selectedVariantToSet.variant_images.length > 0) {
+              images = [...selectedVariantToSet.variant_images];
+            }
+            setCurrentImages(images);
           } else {
             // Match mobile app: Only use variant_images (no fallback)
             // If no variants exist, show empty array (mobile shows nothing)
@@ -236,30 +418,104 @@ const ProductDetail = () => {
   // Update images and variant when color changes
   useEffect(() => {
     if (selectedColorVariant && selectedColorVariant.data && selectedColorVariant.data.length > 0) {
-      const firstVariant = selectedColorVariant.data[0];
       const isRunningMaterial = productData?.product?.size_type === 'running_material' ||
         productData?.product?.size_type === 'runningmaterial';
 
       if (!isRunningMaterial) {
-        setSelectedSize(firstVariant.size);
-      }
-      setSelectedVariant(firstVariant);
+        // Helper function to get the effective price of a variant
+        const getVariantPrice = (variant) => {
+          if (variant.discount_price?.has_offer && variant.discount_price?.discounted_price) {
+            return parseFloat(variant.discount_price.discounted_price);
+          }
+          return parseFloat(variant.total_price || variant.price || 0);
+        };
 
-      if (isRunningMaterial) {
-        const minMeter = parseFloat(productData?.product?.minimum_meter || firstVariant.minimum_meter || 0);
-        setMeter(minMeter > 0 ? minMeter : 0);
+        // Calculate the lowest price for this specific color variant
+        let lowestPriceForColor = Infinity;
+        for (const sizeVariant of selectedColorVariant.data || []) {
+          const variantPrice = getVariantPrice(sizeVariant);
+          if (variantPrice < lowestPriceForColor) {
+            lowestPriceForColor = variantPrice;
+          }
+        }
+
+        // Find the FIRST size with the lowest price for this color variant
+        let sizeToUse = null;
+        
+        if (selectedColorVariant.available_sizes && selectedColorVariant.available_sizes.length > 0) {
+          // Check available_sizes in order to find first one with lowest price
+          for (const sizeInfo of selectedColorVariant.available_sizes) {
+            if (sizeInfo.available_count > 0) {
+              // Find the variant data for this size
+              const variantForSize = selectedColorVariant.data?.find(v => v.size === sizeInfo.size);
+              if (variantForSize) {
+                const variantPrice = getVariantPrice(variantForSize);
+                // Check if this variant has the lowest price for this color
+                if (Math.abs(variantPrice - lowestPriceForColor) < 0.01) {
+                  sizeToUse = sizeInfo.size;
+                  break;
+                }
+              }
+            }
+          }
+          
+          // If no size with lowest price found (shouldn't happen), use first available
+          if (!sizeToUse) {
+            const firstAvailableWithStock = selectedColorVariant.available_sizes.find(
+              (size) => size.available_count > 0
+            );
+            sizeToUse = firstAvailableWithStock 
+              ? firstAvailableWithStock.size 
+              : selectedColorVariant.available_sizes[0].size;
+          }
+        } else {
+          // Fallback: check data array directly if available_sizes doesn't exist
+          for (const sizeVariant of selectedColorVariant.data) {
+            const variantPrice = getVariantPrice(sizeVariant);
+            if (Math.abs(variantPrice - lowestPriceForColor) < 0.01) {
+              sizeToUse = sizeVariant.size;
+              break;
+            }
+          }
+          
+          // If still no size found, use first one
+          if (!sizeToUse && selectedColorVariant.data.length > 0) {
+            sizeToUse = selectedColorVariant.data[0].size;
+          }
+        }
+        
+        setSelectedSize(sizeToUse);
+        
+        // Find the matching variant from data array
+        const matchingSizeVariant = selectedColorVariant.data.find(
+          (v) => v.size === sizeToUse
+        ) || selectedColorVariant.data[0];
+        setSelectedVariant(matchingSizeVariant);
+
+        // Use the matching variant for images
+        let images = [];
+        if (matchingSizeVariant?.variant_images && matchingSizeVariant.variant_images.length > 0) {
+          images = [...matchingSizeVariant.variant_images];
+        }
+        setCurrentImages(images);
+      } else {
+        const firstVariant = selectedColorVariant.data[0];
+        setSelectedVariant(firstVariant);
+        
+        if (isRunningMaterial) {
+          const minMeter = parseFloat(productData?.product?.minimum_meter || firstVariant.minimum_meter || 0);
+          setMeter(minMeter > 0 ? minMeter : 0);
+        }
+
+        // Match mobile app: Only use variant_images (no fallback to additional_images or main_image)
+        // Mobile uses: controller.selectedVariantImages which is variantImages array from selected variant
+        let images = [];
+        if (firstVariant.variant_images && firstVariant.variant_images.length > 0) {
+          images = [...firstVariant.variant_images];
+        }
+        setCurrentImages(images);
       }
 
-      // Match mobile app: Only use variant_images (no fallback to additional_images or main_image)
-      // Mobile uses: controller.selectedVariantImages which is variantImages array from selected variant
-      let images = [];
-      if (firstVariant.variant_images && firstVariant.variant_images.length > 0) {
-        images = [...firstVariant.variant_images];
-      }
-      // Note: Mobile app doesn't fallback to additional_images or main_image
-      // If variant_images is empty, mobile shows empty array (or just size chart if available)
-
-      setCurrentImages(images);
       setMainImageIndex(0);
     }
   }, [selectedColorVariant, productData]);
